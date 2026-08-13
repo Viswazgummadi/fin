@@ -1,12 +1,12 @@
-### Session 2 — 2025-08-13
-Phase worked on: Stage 1 — infrastructure prep
+### Session 5 — 2025-08-13
+Phase worked on: Stage 2 — core app foundation
 Completed:
-- Added a reusable app shell component
-- Added a login page placeholder
-- Added a Supabase config helper stub
+- Added Supabase SSR helpers
+- Added middleware to protect routes and redirect login state
+- Added a working login form
+- Home page now reads the current Supabase user session
 Broken / TODO:
-- Dependencies are not installed yet
-- Supabase project still needs to be created
-- Auth/database wiring not connected yet
+- Live login still needs to be tested with the real Supabase project credentials
+- No logout button / app navigation yet
 Next exact step:
-- Create Supabase project + Vercel project when ready, then share env values
+- Test sign-in against Supabase, then add logout and protected app navigation

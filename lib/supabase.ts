@@ -1,5 +1,11 @@
-// Supabase helpers will be wired once you provide project credentials.
-// These placeholders keep the app structure ready.
+import { createClient } from '@supabase/supabase-js';
 
-export const isSupabaseConfigured = () =>
-  Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+export const isSupabaseConfigured = () => Boolean(supabaseUrl && supabaseAnonKey);
+
+export const supabase =
+  supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null;

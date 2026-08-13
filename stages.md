@@ -15,7 +15,7 @@ I am preparing the code for:
 - Vercel deployment
 - Private repo workflow
 
-### Manual steps I will ask you for here
+### Manual steps I may ask you for here
 - Create a Supabase project
 - Create a Vercel project
 - Add env vars to Vercel/Supabase
@@ -26,6 +26,7 @@ I am preparing the code for:
 - Protected routes
 - App layout/sidebar
 - Accounts + categories + transactions base
+- Minimal Supabase connectivity check
 
 ## Stage 3 — Daily usage flow
 - Quick add transaction
@@ -48,3 +49,5 @@ I am preparing the code for:
 ## Notes
 - Keep any links, IDs, and keys in `.env.local` or a private config file.
 - I will stop at any stage that needs your manual setup and ask clearly for the next action.
+- Current Supabase project ref: `ifxgrybtyeqikxwkucpp`
+- Current Vercel app URL: `https://fin-psi-umber.vercel.app/`
