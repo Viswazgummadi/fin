@@ -1,5 +1,6 @@
 import { AppShell } from '../../components/AppShell';
 import { CrudPage } from '../../components/CrudPage';
+import { SetupStarterData } from '../../components/SetupStarterData';
 import { TransactionsClient } from '../../components/TransactionsClient';
 import { getAccounts, getCategories, getTransactions } from '../../lib/data';
 
@@ -10,6 +11,7 @@ export default async function TransactionsPage() {
   return (
     <AppShell>
       <CrudPage title="Transactions" description="Filterable transaction list with edit, soft delete, undo, search, and shareable query params." rows={[]}>
+        {!accounts.length || !categories.length ? <SetupStarterData /> : null}
         <TransactionsClient initialTransactions={transactions} accounts={accounts} categories={categories} />
       </CrudPage>
     </AppShell>

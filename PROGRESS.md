@@ -1,12 +1,11 @@
-### Session 11 — 2025-08-13
-Phase worked on: Stage 3 — data foundation
+### Session 16 — 2025-08-13
+Phase worked on: Stage 3 — transactions usability
 Completed:
-- Upgraded transaction entry to include account/type/category selection
-- Loaded accounts and categories into the transaction form
-- Kept the app build-safe while improving the main entry flow
+- Added a starter-data button so the transactions page can be tested immediately
+- Kept the transaction form connected to live accounts and categories
+- Preserved edit/delete/restore behavior for transactions
 Broken / TODO:
-- Transaction create still needs validation and better transfer handling
-- Edit/delete/undo and tag selection are still missing
-- Migration still needs to be applied in Supabase for real data use
+- Starter-data creation depends on Supabase permissions being correct
+- Transaction validation and transfer handling still need refinement
 Next exact step:
-- Add edit/delete/undo for transactions and then tighten validation
+- Verify starter data creation in Supabase, then test adding a transaction end-to-end

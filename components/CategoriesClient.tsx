@@ -9,12 +9,37 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
   const [categories, setCategories] = useState(initialCategories);
   const [name, setName] = useState('');
   const [kind, setKind] = useState<Category['kind']>('expense');
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  const addCategory = async () => {
+  const reset = () => {
+    setEditingId(null);
+    setName('');
+    setKind('expense');
+  };
+
+  const addOrUpdate = async () => {
     if (!supabase || !name.trim()) return;
+    if (editingId) {
+      const { data, error } = await supabase.from('categories').update({ name, kind }).eq('id', editingId).select('*').single();
+      if (!error && data) setCategories(categories.map((c) => (c.id === editingId ? data : c)));
+      reset();
+      return;
+    }
     const { data, error } = await supabase.from('categories').insert({ name, kind }).select('*').single();
     if (!error && data) setCategories([data, ...categories]);
-    setName('');
+    reset();
+  };
+
+  const edit = (c: Category) => {
+    setEditingId(c.id);
+    setName(c.name);
+    setKind(c.kind);
+  };
+
+  const archive = async (id: string) => {
+    if (!supabase) return;
+    const { error } = await supabase.from('categories').update({ archived: true }).eq('id', id);
+    if (!error) setCategories(categories.filter((c) => c.id !== id));
   };
 
   return (
@@ -26,13 +51,22 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
           <option value="income">Income</option>
           <option value="both">Both</option>
         </select>
-        <button onClick={addCategory} className="rounded-lg bg-accent px-4 py-2 font-medium text-black">Add category</button>
+        <button onClick={addOrUpdate} className="rounded-lg bg-accent px-4 py-2 font-medium text-black">{editingId ? 'Update' : 'Add'} category</button>
       </div>
+      {editingId ? <button onClick={reset} className="text-sm text-text-secondary">Cancel edit</button> : null}
       <div className="space-y-2">
         {categories.map((c) => (
           <div key={c.id} className="rounded-xl border border-border bg-bg-secondary p-4">
-            <div className="font-medium">{c.name}</div>
-            <div className="text-sm text-text-secondary">{c.kind}</div>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="font-medium">{c.name}</div>
+                <div className="text-sm text-text-secondary">{c.kind}</div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => edit(c)} className="rounded-lg border border-border px-3 py-1 text-sm">Edit</button>
+                <button onClick={() => archive(c.id)} className="rounded-lg border border-border px-3 py-1 text-sm">Archive</button>
+              </div>
+            </div>
           </div>
         ))}
       </div>

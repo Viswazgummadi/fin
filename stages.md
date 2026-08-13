@@ -14,8 +14,10 @@ I am preparing the code for:
 - Supabase auth + database
 - Vercel deployment
 - Private repo workflow
+- Supabase CLI migrations
 
 ### Manual steps I may ask you for here
+- Install Supabase CLI locally if needed
 - Create a Supabase project
 - Create a Vercel project
 - Add env vars to Vercel/Supabase
