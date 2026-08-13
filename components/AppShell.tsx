@@ -1,4 +1,5 @@
 import { Sidebar } from './Sidebar';
+import { AuthButtons } from './AuthButtons';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -15,9 +16,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <a className="rounded-lg border border-border bg-bg-tertiary px-3 py-2 text-sm" href="/add">
                 + Add
               </a>
-              <a className="rounded-lg border border-border bg-bg-tertiary px-3 py-2 text-sm" href="/login">
-                Login
-              </a>
+              <AuthButtons />
             </div>
           </div>
         </header>

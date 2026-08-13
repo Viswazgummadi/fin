@@ -1,13 +1,12 @@
-### Session 7 — 2025-08-13
+### Session 11 — 2025-08-13
 Phase worked on: Stage 3 — data foundation
 Completed:
-- Added the initial Supabase SQL migration for all core tables
-- Added shared TypeScript types for accounts, categories, and transactions
-- Added basic data access helpers for fetching accounts/categories/transactions
-- Added a dashboard route and pointed the home route to it
+- Upgraded transaction entry to include account/type/category selection
+- Loaded accounts and categories into the transaction form
+- Kept the app build-safe while improving the main entry flow
 Broken / TODO:
-- Migration is not yet applied in Supabase
-- CRUD UI and write mutations are still missing
-- Some later tables/relations will need follow-up migrations and indexes
+- Transaction create still needs validation and better transfer handling
+- Edit/delete/undo and tag selection are still missing
+- Migration still needs to be applied in Supabase for real data use
 Next exact step:
-- Apply the migration in Supabase, then build accounts + transactions CRUD UI
+- Add edit/delete/undo for transactions and then tighten validation

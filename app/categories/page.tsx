@@ -1,18 +1,17 @@
 import { AppShell } from '../../components/AppShell';
-import { SectionPage } from '../../components/SectionPage';
+import { CrudPage } from '../../components/CrudPage';
+import { CategoriesClient } from '../../components/CategoriesClient';
+import { getCategories } from '../../lib/data';
 
-export default function CategoriesPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function CategoriesPage() {
+  const categories = await getCategories();
   return (
     <AppShell>
-      <SectionPage
-        title="Categories"
-        description="Expense/income/both categories with subcategories, icons, colors, and essential flagging."
-        items={[
-          { title: 'Hierarchy', description: 'Parent/child category support.' },
-          { title: 'Essential flag', description: 'Use later in analysis for essential vs optional spending.' },
-          { title: 'Tags', description: 'Create-on-the-fly labels for better search and breakdowns.' },
-        ]}
-      />
+      <CrudPage title="Categories" description="Expense/income/both categories with subcategories, icons, colors, and essential flagging." rows={[]}>
+        <CategoriesClient initialCategories={categories} />
+      </CrudPage>
     </AppShell>
   );
 }

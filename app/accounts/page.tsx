@@ -1,18 +1,21 @@
 import { AppShell } from '../../components/AppShell';
-import { SectionPage } from '../../components/SectionPage';
+import { CrudPage } from '../../components/CrudPage';
+import { AccountsClient } from '../../components/AccountsClient';
+import { getAccounts } from '../../lib/data';
 
-export default function AccountsPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function AccountsPage() {
+  const accounts = await getAccounts();
   return (
     <AppShell>
-      <SectionPage
+      <CrudPage
         title="Accounts"
         description="Bank, cash, wallet, credit, and other accounts with opening balances and archive support."
-        items={[
-          { title: 'Balance', description: 'Computed from opening balance plus all account transactions.' },
-          { title: 'Transfer', description: 'Move money between accounts as a special transaction type.' },
-          { title: 'Archive', description: 'Hide inactive accounts without deleting history.' },
-        ]}
-      />
+        rows={[]}
+      >
+        <AccountsClient initialAccounts={accounts} />
+      </CrudPage>
     </AppShell>
   );
 }

@@ -1,18 +1,17 @@
 import { AppShell } from '../../components/AppShell';
-import { SectionPage } from '../../components/SectionPage';
+import { CrudPage } from '../../components/CrudPage';
+import { TransactionsClient } from '../../components/TransactionsClient';
+import { getAccounts, getCategories, getTransactions } from '../../lib/data';
 
-export default function TransactionsPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function TransactionsPage() {
+  const [transactions, accounts, categories] = await Promise.all([getTransactions(), getAccounts(), getCategories()]);
   return (
     <AppShell>
-      <SectionPage
-        title="Transactions"
-        description="Filterable transaction list with edit, soft delete, undo, search, and shareable query params."
-        items={[
-          { title: 'Filters', description: 'Date range, account, category, tag, type, planned/unplanned, and amount range.' },
-          { title: 'Undo history', description: 'Soft-deleted items remain restorable from history.' },
-          { title: 'Duplicate', description: 'Repeat a past transaction into a new quick-add flow.' },
-        ]}
-      />
+      <CrudPage title="Transactions" description="Filterable transaction list with edit, soft delete, undo, search, and shareable query params." rows={[]}>
+        <TransactionsClient initialTransactions={transactions} accounts={accounts} categories={categories} />
+      </CrudPage>
     </AppShell>
   );
 }
