@@ -1,7 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
+const configured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
 export async function middleware(request: NextRequest) {
+  if (!configured) return NextResponse.next();
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

@@ -16,6 +16,12 @@ export function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    if (!supabase) {
+      setLoading(false);
+      setError('Supabase env vars are missing in this environment.');
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) return setError(error.message);
