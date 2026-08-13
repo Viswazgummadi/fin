@@ -1,9 +1,11 @@
 "use client";
 
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 
 export function SetupStarterData() {
+  const router = useRouter();
   const supabase = createSupabaseBrowserClient();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -21,24 +23,56 @@ export function SetupStarterData() {
       return;
     }
 
-    const { data: account } = await supabase
+    const { data: existingAccount } = await supabase
       .from('accounts')
-      .insert({ name: 'Main account', type: 'bank', opening_balance: 0, currency: 'INR' })
       .select('*')
-      .single();
+      .eq('user_id', user.id)
+      .eq('name', 'Main account')
+      .maybeSingle();
 
-    const { data: category } = await supabase
+    const { data: existingCategory } = await supabase
       .from('categories')
-      .insert({ name: 'General', kind: 'expense' })
       .select('*')
-      .single();
+      .eq('user_id', user.id)
+      .eq('name', 'General')
+      .maybeSingle();
 
-    if (account && category) {
-      setMessage('Starter account and category created. You can now add transactions.');
-      window.location.reload();
-    } else {
-      setMessage('Could not create starter data. Check Supabase permissions.');
+    let createdAccount = existingAccount;
+    let createdCategory = existingCategory;
+
+    if (!createdAccount) {
+      const { data, error } = await supabase
+        .from('accounts')
+        .insert({ name: 'Main account', type: 'bank', opening_balance: 0, currency: 'INR' })
+        .select('*')
+        .single();
+      if (error) {
+        setMessage(error.message);
+        setLoading(false);
+        return;
+      }
+      createdAccount = data;
     }
+
+    if (!createdCategory) {
+      const { data, error } = await supabase
+        .from('categories')
+        .insert({ name: 'General', kind: 'expense' })
+        .select('*')
+        .single();
+      if (error) {
+        setMessage(error.message);
+        setLoading(false);
+        return;
+      }
+      createdCategory = data;
+    }
+
+    if (createdAccount && createdCategory) {
+      setMessage('Starter account and category are ready. You can now add transactions.');
+      router.refresh();
+    }
+
     setLoading(false);
   };
 

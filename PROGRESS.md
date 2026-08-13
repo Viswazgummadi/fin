@@ -1,11 +1,12 @@
-### Session 16 — 2025-08-13
+### Session 17 — 2025-08-13
 Phase worked on: Stage 3 — transactions usability
 Completed:
-- Added a starter-data button so the transactions page can be tested immediately
-- Kept the transaction form connected to live accounts and categories
-- Preserved edit/delete/restore behavior for transactions
+- Refined the schema with indexes and an updated-at trigger for transactions
+- Switched server data reads to the authenticated Supabase session
+- Upgraded the transaction page to show account/category names and clearer test guidance
+- Made starter data creation idempotent for easier browser testing
 Broken / TODO:
-- Starter-data creation depends on Supabase permissions being correct
-- Transaction validation and transfer handling still need refinement
+- Transfer handling still needs proper source/target logic
+- Transaction validation can still be tightened further
 Next exact step:
-- Verify starter data creation in Supabase, then test adding a transaction end-to-end
+- Run the updated Supabase migration, then open the transactions page and test add/edit/delete/undo
