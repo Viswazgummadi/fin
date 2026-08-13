@@ -1,12 +1,13 @@
-### Session 5 — 2025-08-13
-Phase worked on: Stage 2 — core app foundation
+### Session 7 — 2025-08-13
+Phase worked on: Stage 3 — data foundation
 Completed:
-- Added Supabase SSR helpers
-- Added middleware to protect routes and redirect login state
-- Added a working login form
-- Home page now reads the current Supabase user session
+- Added the initial Supabase SQL migration for all core tables
+- Added shared TypeScript types for accounts, categories, and transactions
+- Added basic data access helpers for fetching accounts/categories/transactions
+- Added a dashboard route and pointed the home route to it
 Broken / TODO:
-- Live login still needs to be tested with the real Supabase project credentials
-- No logout button / app navigation yet
+- Migration is not yet applied in Supabase
+- CRUD UI and write mutations are still missing
+- Some later tables/relations will need follow-up migrations and indexes
 Next exact step:
-- Test sign-in against Supabase, then add logout and protected app navigation
+- Apply the migration in Supabase, then build accounts + transactions CRUD UI
