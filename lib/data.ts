@@ -21,15 +21,21 @@ export async function getCategories(): Promise<Category[]> {
   return data ?? [];
 }
 
-export async function getTransactions(): Promise<Transaction[]> {
+type TransactionOptions = {
+  limit?: number;
+  includeDeleted?: boolean;
+};
+
+export async function getTransactions(options: TransactionOptions = {}): Promise<Transaction[]> {
   const supabase = createSupabaseServerClient();
   if (!supabase) return [];
-  const { data, error } = await supabase
+  const query = supabase
     .from('transactions')
     .select('*')
-    .is('deleted_at', null)
     .order('occurred_at', { ascending: false })
-    .limit(50);
+    .limit(options.limit ?? 500);
+
+  const { data, error } = options.includeDeleted ? await query : await query.is('deleted_at', null);
   if (error) return [];
   return data ?? [];
 }
