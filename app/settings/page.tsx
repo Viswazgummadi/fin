@@ -1,12 +1,12 @@
 import { AppShell } from '../../components/AppShell';
 import { BackupRestoreClient } from '../../components/BackupRestoreClient';
-import { getAccounts, getCategories, getTransactions } from '../../lib/data';
+import { getAccounts, getCategories, getTags, getTransactions } from '../../lib/data';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
-  const [accounts, categories, transactions] = await Promise.all([getAccounts(), getCategories(), getTransactions({ limit: 2000 })]);
-  const snapshot = { accounts, categories, transactions };
+  const [accounts, categories, tags, transactions] = await Promise.all([getAccounts(), getCategories(), getTags(), getTransactions({ limit: 2000 })]);
+  const snapshot = { accounts, categories, tags, transactions };
 
   return (
     <AppShell>

@@ -3,6 +3,8 @@ import { AppShell } from '../../components/AppShell';
 
 const shortcuts = [
   ['What happened', '/whathappened', 'Daily journal view with per-day transaction summaries.'],
+  ['Recurring rules', '/recurring-rules', 'Scheduled money flows and bill reminders.'],
+  ['Tags', '/tags', 'Labels for faster filtering and organization.'],
   ['People', '/people', 'Track lend/borrow and settlements.'],
   ['Goals', '/goals', 'Goal progress and contribution tracking.'],
   ['Limits', '/limits', 'Spending caps and alerts.'],

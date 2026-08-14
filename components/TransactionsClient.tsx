@@ -3,7 +3,9 @@
 import { useMemo, useState } from 'react';
 import type { Account, Category, Transaction } from '../lib/types';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
-import { formatMoney } from '../lib/insights';
+import { formatMoney, toDateKey } from '../lib/insights';
+
+type PlannedFilter = 'all' | 'planned' | 'unplanned';
 
 export function TransactionsClient({
   initialTransactions,
@@ -22,19 +24,56 @@ export function TransactionsClient({
   const [type, setType] = useState<Transaction['type']>('expense');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [isPlanned, setIsPlanned] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [status, setStatus] = useState('');
+
+  const [search, setSearch] = useState('');
+  const [filterAccountId, setFilterAccountId] = useState('all');
+  const [filterCategoryId, setFilterCategoryId] = useState('all');
+  const [filterType, setFilterType] = useState<'all' | Transaction['type']>('all');
+  const [filterPlanned, setFilterPlanned] = useState<PlannedFilter>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const categoryOptions = useMemo(() => categories.filter((c) => c.kind === 'both' || c.kind === type), [categories, type]);
   const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
   const categoryMap = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
   const transferOptions = useMemo(() => accounts.filter((a) => a.id !== accountId), [accounts, accountId]);
 
+  const filteredTransactions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return transactions.filter((txn) => {
+      if (filterType !== 'all' && txn.type !== filterType) return false;
+      if (filterAccountId !== 'all' && txn.account_id !== filterAccountId) return false;
+      if (filterCategoryId !== 'all' && txn.category_id !== filterCategoryId) return false;
+      if (filterPlanned === 'planned' && txn.is_planned === false) return false;
+      if (filterPlanned === 'unplanned' && txn.is_planned !== false) return false;
+      const day = toDateKey(txn.occurred_at);
+      if (dateFrom && day < dateFrom) return false;
+      if (dateTo && day > dateTo) return false;
+      if (!q) return true;
+      const haystack = [
+        txn.note,
+        txn.type,
+        txn.amount,
+        accountMap.get(txn.account_id),
+        categoryMap.get(txn.category_id ?? ''),
+        txn.transfer_account_id ? accountMap.get(txn.transfer_account_id) : '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [transactions, filterType, filterAccountId, filterCategoryId, filterPlanned, dateFrom, dateTo, search, accountMap, categoryMap]);
+
   const resetForm = () => {
     setEditingId(null);
     setAmount('');
     setNote('');
     setType('expense');
+    setIsPlanned(true);
     setCategoryId(categories[0]?.id ?? '');
     setAccountId(accounts[0]?.id ?? '');
     setTransferAccountId(accounts.find((a) => a.id !== accounts[0]?.id)?.id ?? '');
@@ -72,6 +111,7 @@ export function TransactionsClient({
       amount,
       note: note || null,
       category_id: type === 'transfer' ? null : categoryId || null,
+      is_planned: isPlanned,
     };
 
     if (editingId) {
@@ -109,6 +149,7 @@ export function TransactionsClient({
     setCategoryId(txn.category_id ?? '');
     setAmount(txn.amount);
     setNote(txn.note ?? '');
+    setIsPlanned(txn.is_planned !== false);
     setStatus('Editing transaction.');
   };
 
@@ -134,39 +175,92 @@ export function TransactionsClient({
     }
   };
 
+  const clearFilters = () => {
+    setSearch('');
+    setFilterAccountId('all');
+    setFilterCategoryId('all');
+    setFilterType('all');
+    setFilterPlanned('all');
+    setDateFrom('');
+    setDateTo('');
+  };
+
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-5">
-        <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-          {accounts.length ? accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>) : <option value="">No accounts yet</option>}
-        </select>
-        <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={type} onChange={(e) => setType(e.target.value as Transaction['type'])}>
-          <option value="expense">Expense</option>
-          <option value="income">Income</option>
-          <option value="transfer">Transfer</option>
-        </select>
-        {type === 'transfer' ? (
-          <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={transferAccountId} onChange={(e) => setTransferAccountId(e.target.value)}>
-            <option value="">Target account</option>
-            {transferOptions.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+      <section className="rounded-2xl border border-border bg-bg-secondary p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="font-semibold">Search & filters</div>
+            <div className="text-sm text-text-secondary">Search note, account, category, amount, or transfer target.</div>
+          </div>
+          <button onClick={clearFilters} className="rounded-lg border border-border px-3 py-2 text-sm min-h-11">Clear</button>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <input className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2 xl:col-span-2" placeholder="Search transactions" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={filterAccountId} onChange={(e) => setFilterAccountId(e.target.value)}>
+            <option value="all">All accounts</option>
+            {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
           </select>
-        ) : (
-          <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            {categoryOptions.length ? categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>) : <option value="">No categories</option>}
+          <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={filterType} onChange={(e) => setFilterType(e.target.value as typeof filterType)}>
+            <option value="all">All types</option>
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+            <option value="transfer">Transfer</option>
           </select>
-        )}
-        <input className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-        <button onClick={addOrUpdateTransaction} className="min-h-11 rounded-lg bg-accent px-4 py-2 font-medium text-black">{editingId ? 'Update' : 'Add'} transaction</button>
-      </div>
-      <input className="w-full rounded-lg border border-border bg-bg-tertiary px-3 py-2 min-h-11" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} />
-      {status ? <div className="rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-secondary">{status}</div> : null}
-      {editingId ? <button onClick={resetForm} className="text-sm text-text-secondary">Cancel edit</button> : null}
+          <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={filterPlanned} onChange={(e) => setFilterPlanned(e.target.value as PlannedFilter)}>
+            <option value="all">All planned states</option>
+            <option value="planned">Planned</option>
+            <option value="unplanned">Unplanned</option>
+          </select>
+          <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={filterCategoryId} onChange={(e) => setFilterCategoryId(e.target.value)}>
+            <option value="all">All categories</option>
+            {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+          </select>
+          <input className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          <input className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        </div>
+        <div className="text-xs text-text-muted">Showing {filteredTransactions.length} / {transactions.length} transactions</div>
+      </section>
+
+      <section className="rounded-2xl border border-border bg-bg-secondary p-4 space-y-3">
+        <div className="font-semibold">Add or edit transaction</div>
+        <div className="grid gap-3 md:grid-cols-5">
+          <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+            {accounts.length ? accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>) : <option value="">No accounts yet</option>}
+          </select>
+          <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={type} onChange={(e) => setType(e.target.value as Transaction['type'])}>
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+            <option value="transfer">Transfer</option>
+          </select>
+          {type === 'transfer' ? (
+            <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={transferAccountId} onChange={(e) => setTransferAccountId(e.target.value)}>
+              <option value="">Target account</option>
+              {transferOptions.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          ) : (
+            <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+              {categoryOptions.length ? categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>) : <option value="">No categories</option>}
+            </select>
+          )}
+          <input className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <button onClick={addOrUpdateTransaction} className="min-h-11 rounded-lg bg-accent px-4 py-2 font-medium text-black">{editingId ? 'Update' : 'Add'} transaction</button>
+        </div>
+        <input className="w-full min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} />
+        <label className="flex items-center gap-2 text-sm text-text-secondary">
+          <input type="checkbox" checked={isPlanned} onChange={(e) => setIsPlanned(e.target.checked)} />
+          Planned transaction
+        </label>
+        {status ? <div className="rounded-lg border border-border bg-bg-primary/60 px-3 py-2 text-sm text-text-secondary">{status}</div> : null}
+        {editingId ? <button onClick={resetForm} className="text-sm text-text-secondary">Cancel edit</button> : null}
+      </section>
+
       <div className="space-y-2">
-        {transactions.length ? transactions.map((t) => (
+        {filteredTransactions.length ? filteredTransactions.map((t) => (
           <div key={t.id} className="rounded-xl border border-border bg-bg-secondary p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="font-mono">{formatMoney(Number(t.amount))} · {t.type}</div>
+                <div className="font-mono">{formatMoney(Number(t.amount))} · {t.type}{t.is_planned === false ? ' · unplanned' : ''}</div>
                 <div className="text-sm text-text-secondary">
                   {t.type === 'transfer'
                     ? `${accountMap.get(t.account_id) ?? 'Unknown account'} → ${t.transfer_account_id ? accountMap.get(t.transfer_account_id) ?? 'Unknown target' : 'No target'}`
@@ -181,7 +275,7 @@ export function TransactionsClient({
               </div>
             </div>
           </div>
-        )) : <div className="rounded-xl border border-dashed border-border bg-bg-secondary p-4 text-sm text-text-secondary">No transactions yet. Create starter data and add one to test the flow.</div>}
+        )) : <div className="rounded-xl border border-dashed border-border bg-bg-secondary p-4 text-sm text-text-secondary">No transactions match the current filters.</div>}
       </div>
     </div>
   );

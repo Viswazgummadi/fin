@@ -1,5 +1,4 @@
 import { AppShell } from '../../components/AppShell';
-import { CrudPage } from '../../components/CrudPage';
 import { SetupStarterData } from '../../components/SetupStarterData';
 import { TransactionsClient } from '../../components/TransactionsClient';
 import { getAccounts, getCategories, getTransactions } from '../../lib/data';
@@ -10,14 +9,14 @@ export default async function TransactionsPage() {
   const [transactions, accounts, categories] = await Promise.all([getTransactions(), getAccounts(), getCategories()]);
   return (
     <AppShell>
-      <CrudPage
-        title="Transactions"
-        description="This is the browser test page for money entry: create an account, create a category, add a transaction, see it listed immediately."
-        rows={[]}
-      >
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-semibold">Transactions</h1>
+          <p className="mt-2 max-w-3xl text-sm text-text-secondary">Search, filter, add, edit, delete, and restore with a dense mobile-friendly flow.</p>
+        </div>
         {!accounts.length || !categories.length ? <SetupStarterData /> : null}
         <TransactionsClient initialTransactions={transactions} accounts={accounts} categories={categories} />
-      </CrudPage>
+      </div>
     </AppShell>
   );
 }

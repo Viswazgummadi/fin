@@ -1,4 +1,14 @@
-import type { Account, Category, Transaction } from './types';
+import type {
+  Account,
+  Category,
+  Goal,
+  Limit,
+  Person,
+  PersonLedger,
+  RecurringRule,
+  Tag,
+  Transaction,
+} from './types';
 import { createSupabaseServerClient } from '../utils/supabase/server';
 
 export async function getAccounts(): Promise<Account[]> {
@@ -12,11 +22,15 @@ export async function getAccounts(): Promise<Account[]> {
 export async function getCategories(): Promise<Category[]> {
   const supabase = createSupabaseServerClient();
   if (!supabase) return [];
-  const { data, error } = await supabase
-    .from('categories')
-    .select('*')
-    .eq('archived', false)
-    .order('sort_order', { ascending: true });
+  const { data, error } = await supabase.from('categories').select('*').eq('archived', false).order('sort_order', { ascending: true });
+  if (error) return [];
+  return data ?? [];
+}
+
+export async function getTags(): Promise<Tag[]> {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return [];
+  const { data, error } = await supabase.from('tags').select('*').order('name', { ascending: true });
   if (error) return [];
   return data ?? [];
 }
@@ -36,6 +50,54 @@ export async function getTransactions(options: TransactionOptions = {}): Promise
     .limit(options.limit ?? 500);
 
   const { data, error } = options.includeDeleted ? await query : await query.is('deleted_at', null);
+  if (error) return [];
+  return data ?? [];
+}
+
+export async function getPeople(): Promise<Person[]> {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return [];
+  const { data, error } = await supabase.from('people').select('*').eq('archived', false).order('name', { ascending: true });
+  if (error) return [];
+  return data ?? [];
+}
+
+export async function getPeopleLedger(): Promise<PersonLedger[]> {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return [];
+  const { data, error } = await supabase.from('people_ledger').select('*').order('occurred_at', { ascending: false });
+  if (error) return [];
+  return data ?? [];
+}
+
+export async function getGoals(): Promise<Goal[]> {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return [];
+  const { data, error } = await supabase.from('goals').select('*').eq('archived', false).order('created_at', { ascending: false });
+  if (error) return [];
+  return data ?? [];
+}
+
+export async function getGoalContributions(): Promise<{ id: string; goal_id: string; amount: string; occurred_at: string; linked_transaction_id: string | null }[]> {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return [];
+  const { data, error } = await supabase.from('goal_contributions').select('*').order('occurred_at', { ascending: false });
+  if (error) return [];
+  return data ?? [];
+}
+
+export async function getLimits(): Promise<Limit[]> {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return [];
+  const { data, error } = await supabase.from('limits').select('*').order('active', { ascending: false });
+  if (error) return [];
+  return data ?? [];
+}
+
+export async function getRecurringRules(): Promise<RecurringRule[]> {
+  const supabase = createSupabaseServerClient();
+  if (!supabase) return [];
+  const { data, error } = await supabase.from('recurring_rules').select('*').order('active', { ascending: false }).order('next_run_date', { ascending: true });
   if (error) return [];
   return data ?? [];
 }

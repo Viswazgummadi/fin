@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Sidebar } from './Sidebar';
 import { AuthButtons } from './AuthButtons';
 import { MobileBottomNav } from './MobileBottomNav';
+import { OnlineStatus } from './OnlineStatus';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -16,10 +17,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
               <div className="text-xs text-text-muted">Private, single-user, manual entry</div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <Link className="rounded-lg border border-border bg-bg-tertiary px-3 py-2 text-sm min-h-11 inline-flex items-center" href="/add">
                 + Add
               </Link>
+              <OnlineStatus />
               <AuthButtons />
             </div>
           </div>

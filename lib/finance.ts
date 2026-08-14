@@ -1,4 +1,4 @@
-import type { Account, Transaction } from './types';
+import type { Account, Goal, Limit, Transaction } from './types';
 
 export function calculateAccountBalances(accounts: Account[], transactions: Transaction[]) {
   const balances = new Map<string, number>();

@@ -1,18 +1,20 @@
 import { AppShell } from '../../components/AppShell';
-import { SectionPage } from '../../components/SectionPage';
+import { GoalsClient } from '../../components/GoalsClient';
+import { getAccounts, getGoals } from '../../lib/data';
 
-export default function GoalsPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function GoalsPage() {
+  const [goals, accounts] = await Promise.all([getGoals(), getAccounts()]);
   return (
     <AppShell>
-      <SectionPage
-        title="Goals"
-        description="Savings goals, progress bars, contribution tracking, and ETA calculations."
-        items={[
-          { title: 'Progress', description: 'Target amount vs current amount, plus monthly contribution rate.' },
-          { title: 'ETA', description: 'Projected months to reach the goal from recent contribution pace.' },
-          { title: 'Link accounts', description: 'Optionally tie a savings account directly to a goal.' },
-        ]}
-      />
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-semibold">Goals</h1>
+          <p className="mt-2 max-w-3xl text-sm text-text-secondary">Set savings goals, track contributions, and see progress with ETA.</p>
+        </div>
+        <GoalsClient initialGoals={goals} accounts={accounts} />
+      </div>
     </AppShell>
   );
 }

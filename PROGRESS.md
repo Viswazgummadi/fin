@@ -1,12 +1,12 @@
-### Session 20 — 2025-08-13
-Phase worked on: Usability + restore pass
+### Session 21 — 2025-08-13
+Phase worked on: Remaining core feature implementation
 Completed:
-- Added proper transfer source/target handling in transaction entry and display
-- Added account balances so transfers are visible from the accounts page
-- Added backup restore flow with JSON file import and replace-my-data restore
-- Extended starter data so transfer testing is immediately possible
+- Added search/filter UI to transactions
+- Added functional pages for People, Goals, Limits, Recurring rules, and Tags
+- Added data helpers and types for the remaining finance entities
+- Added extra Supabase indexes for the new entities
 Broken / TODO:
-- Restore currently covers accounts, categories, and transactions only
-- Future features like Sankey and anomaly detection are still planned
+- PWA/offline queue still needs implementation
+- Advanced analysis visuals can still be expanded further
 Next exact step:
-- Test transfer entry on the browser, verify account balances, and test backup restore
+- Build and test the new pages, then add offline/PWA support

@@ -8,10 +8,11 @@ import { createSupabaseBrowserClient } from '../utils/supabase/client';
 type Snapshot = {
   accounts?: Account[];
   categories?: Category[];
+  tags?: { id: string; user_id: string; name: string; color: string | null }[];
   transactions?: Transaction[];
 };
 
-export function BackupRestoreClient({ snapshot }: { snapshot: { accounts: Account[]; categories: Category[]; transactions: Transaction[] } }) {
+export function BackupRestoreClient({ snapshot }: { snapshot: { accounts: Account[]; categories: Category[]; tags: { id: string; user_id: string; name: string; color: string | null }[]; transactions: Transaction[] } }) {
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -72,7 +73,7 @@ export function BackupRestoreClient({ snapshot }: { snapshot: { accounts: Accoun
       return;
     }
 
-    const deletionOrder = ['transactions', 'categories', 'accounts'] as const;
+    const deletionOrder = ['transactions', 'tags', 'categories', 'accounts'] as const;
 
     for (const table of deletionOrder) {
       const { error } = await supabase.from(table).delete().eq('user_id', user.id);
@@ -85,6 +86,7 @@ export function BackupRestoreClient({ snapshot }: { snapshot: { accounts: Accoun
 
     const accounts = (loaded.accounts ?? []).map((row) => ({ ...row, user_id: user.id }));
     const categories = (loaded.categories ?? []).map((row) => ({ ...row, user_id: user.id }));
+    const tags = (loaded.tags ?? []).map((row) => ({ ...row, user_id: user.id }));
     const transactions = (loaded.transactions ?? []).map((row) => ({
       ...row,
       user_id: user.id,
@@ -99,6 +101,15 @@ export function BackupRestoreClient({ snapshot }: { snapshot: { accounts: Accoun
       if (error) {
         setLoading(false);
         setStatus(`Could not restore accounts: ${error.message}`);
+        return;
+      }
+    }
+
+    if (tags.length) {
+      const { error } = await supabase.from('tags').insert(tags);
+      if (error) {
+        setLoading(false);
+        setStatus(`Could not restore tags: ${error.message}`);
         return;
       }
     }

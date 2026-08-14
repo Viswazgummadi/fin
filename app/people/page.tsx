@@ -1,18 +1,20 @@
 import { AppShell } from '../../components/AppShell';
-import { SectionPage } from '../../components/SectionPage';
+import { PeopleClient } from '../../components/PeopleClient';
+import { getPeople, getPeopleLedger } from '../../lib/data';
 
-export default function PeoplePage() {
+export const dynamic = 'force-dynamic';
+
+export default async function PeoplePage() {
+  const [people, ledger] = await Promise.all([getPeople(), getPeopleLedger()]);
   return (
     <AppShell>
-      <SectionPage
-        title="People"
-        description="Track lend/borrow/shared expense/reimbursement/settlement ledgers per person."
-        items={[
-          { title: 'Per-person ledger', description: 'Net outstanding with clear signed totals.' },
-          { title: 'Settle up', description: 'Create settlement entries and optional linked transactions.' },
-          { title: 'Ledger detail', description: 'Chronological history with notes and linked transactions.' },
-        ]}
-      />
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-semibold">People</h1>
+          <p className="mt-2 max-w-3xl text-sm text-text-secondary">Track lend/borrow/shared expenses and settlements per person.</p>
+        </div>
+        <PeopleClient initialPeople={people} initialLedger={ledger} />
+      </div>
     </AppShell>
   );
 }
