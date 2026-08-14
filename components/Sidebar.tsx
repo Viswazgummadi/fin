@@ -10,7 +10,6 @@ const links = [
   ['What happened', '/whathappened'],
   ['Analysis', '/analysis'],
   ['Calendar', '/calendar'],
-  ['Forecast', '/forecast'],
   ['Recurring rules', '/recurring-rules'],
   ['Tags', '/tags'],
   ['Accounts', '/accounts'],

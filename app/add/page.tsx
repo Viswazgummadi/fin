@@ -1,18 +1,13 @@
 import { AppShell } from '../../components/AppShell';
-import { SectionPage } from '../../components/SectionPage';
+import { QuickAdd } from '../../components/QuickAdd';
 
 export default function AddPage() {
   return (
     <AppShell>
-      <SectionPage
-        title="Quick Add"
-        description="Fast manual entry with keypad-first flow, recent categories, notes, tags, and offline queue support in later stages."
-        items={[
-          { title: 'Amount keypad', description: 'Big mono number input designed for under-10-second entry.' },
-          { title: 'Type toggle', description: 'Expense, income, and transfer modes with remembered last choice.' },
-          { title: 'Smart categories', description: 'Recent categories first, then the full category picker.' },
-        ]}
-      />
+      <div className="mx-auto max-w-lg">
+        <h1 className="mb-6 text-3xl font-semibold">Quick Add</h1>
+        <QuickAdd />
+      </div>
     </AppShell>
   );
 }

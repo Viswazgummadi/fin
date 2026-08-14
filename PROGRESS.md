@@ -1,12 +1,15 @@
-### Session 21 — 2025-08-13
-Phase worked on: Remaining core feature implementation
+### Session 23 — 2025-08-14
+Phase worked on: PWA setup and Quick Add screen implementation
 Completed:
-- Added search/filter UI to transactions
-- Added functional pages for People, Goals, Limits, Recurring rules, and Tags
-- Added data helpers and types for the remaining finance entities
-- Added extra Supabase indexes for the new entities
+- Installed `next-pwa` and configured it in `next.config.mjs`
+- Created `manifest.webmanifest`
+- Added `PWARegister` component and enabled service worker
+- Implemented `Providers` component with `QueryClientProvider`
+- Built `QuickAdd` component for transaction entry
+- Replaced placeholder on `/add` route with the `QuickAdd` component
+- Integrated account fetching in `QuickAdd`
 Broken / TODO:
-- PWA/offline queue still needs implementation
-- Advanced analysis visuals can still be expanded further
+- Full offline mutation queue with IndexedDB persistence for TanStack Query
+- Polish the UI of Quick Add to match "keypad-first" design
 Next exact step:
-- Build and test the new pages, then add offline/PWA support
+- Implement robust offline persistence for mutations using `react-query-persist-client`

@@ -284,19 +284,12 @@ Indexes to add: `transactions(user_id, occurred_at desc)`, `transactions(account
 - Any goal contributions that day
 - Prev/Next day arrows for quick browsing (like a journal, literally flip through days)
 
-### 5.5 Forecasting page
-- Editable "Expected upcoming money" list (from recurring income rules + manually added one-offs)
-- Editable "Known expenses" list (from recurring expense rules + manually added)
-- Formula shown transparently:
-  ```
-  Current balance         ₹42,000
-  + Expected income        ₹80,000
-  − Known expenses        −₹25,000
-  − Planned savings/goals −₹15,000
-  = Safe discretionary     ₹82,000
-  ```
-- Editable "planned savings" as a slider or number tied to active goals' monthly contributions
-- Small projection chart: balance over next 30/60/90 days assuming recurring rules fire as scheduled
+### 5.5 Quick actions / menus
+- Quick Add stays the primary fast-entry surface
+- Mobile bottom nav keeps frequent destinations one tap away
+- Secondary tools live in the More menu (Tags, Recurring Rules, People, Goals, Limits, Settings)
+- Optional dashboard action cards can surface common flows without creating new routes
+- No separate forecasting page; planning is kept inside existing screens and summaries
 
 ### 5.6 Limits
 - Per category/tag/overall, weekly or monthly
@@ -336,7 +329,6 @@ Indexes to add: `transactions(user_id, occurred_at desc)`, `transactions(account
 /goals                → Goals list + detail
 /people                → People list
 /people/[id]           → Person ledger detail
-/forecast              → Forecasting page
 /accounts              → Manage accounts (add/edit/archive, transfer money)
 /categories             → Manage categories/subcategories
 /settings               → Export/import, theme, currency, keyboard shortcuts help
@@ -399,8 +391,8 @@ Indexes to add: `transactions(user_id, occurred_at desc)`, `transactions(account
 - 3-month rolling average + anomaly flagging (z-score)
 - **Done when:** `/analysis` page fully matches §5.4 spec
 
-### Phase 7 — Forecasting, Search, Export/Import, Polish
-- Forecasting page (§5.5)
+### Phase 7 — Search, Export/Import, Polish
+- Quick actions / menus (§5.5)
 - Global search + shareable filter URLs
 - JSON/CSV export, JSON import with dry-run
 - Keyboard shortcuts (desktop), swipe actions (mobile)
@@ -427,7 +419,7 @@ Since API usage is limited, structure each coding-agent session like this:
 ---
 
 ## 9. Testing Approach (lightweight, since it's solo/manual-entry app)
-- Vitest for pure functions (balance calc, forecasting formula, anomaly z-score, goal ETA calc) — these are the places bugs would silently corrupt your financial picture, worth real unit tests
+- Vitest for pure functions (balance calc, anomaly z-score, goal ETA calc) — these are the places bugs would silently corrupt your financial picture, worth real unit tests
 - Manual QA checklist per phase (kept in PROGRESS.md) rather than full E2E test suite — not worth the API budget for a single-user app
 
 ---

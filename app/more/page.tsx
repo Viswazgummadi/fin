@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { AppShell } from '../../components/AppShell';
 
 const shortcuts = [
+  ['Quick add', '/add', 'Fast manual entry for one-tap transaction logging.'],
   ['What happened', '/whathappened', 'Daily journal view with per-day transaction summaries.'],
   ['Recurring rules', '/recurring-rules', 'Scheduled money flows and bill reminders.'],
   ['Tags', '/tags', 'Labels for faster filtering and organization.'],
@@ -17,7 +18,7 @@ export default function MorePage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-semibold">More</h1>
-          <p className="mt-2 max-w-3xl text-sm text-text-secondary">Secondary areas optimized for mobile so you can still reach everything quickly on a Samsung S25 Ultra.</p>
+          <p className="mt-2 max-w-3xl text-sm text-text-secondary">Secondary actions and tools optimized for mobile so you can reach everything quickly on a Samsung S25 Ultra.</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {shortcuts.map(([label, href, desc]) => (
