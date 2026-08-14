@@ -7,10 +7,13 @@ import type { Account } from '../lib/types';
 import {
   DEFAULT_QUICK_SPEND_TEMPLATES,
   QUICK_SPEND_EVENT,
+  normalizeQuickSpendConfig,
   readQuickSpendConfig,
+  saveQuickSpendConfig,
   type QuickSpendTemplate,
 } from '../lib/quick-spend';
 import { queryKeys } from '../lib/query-keys';
+import { enqueueOfflineOutboxItem, fetchRemoteQuickSpendConfig } from '../lib/offline-sync';
 
 export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
   const [amount, setAmount] = useState('');
@@ -25,55 +28,88 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
     queryFn: async () => {
       if (!supabase) return [];
       const { data } = await supabase.from('accounts').select('*').eq('archived', false);
-      return data as Account[] || [];
+      return (data as Account[]) || [];
     },
     enabled: !!supabase,
+  });
+
+  const { data: quickSpendConfig } = useQuery({
+    queryKey: queryKeys.quickSpendConfig,
+    queryFn: async () => {
+      if (!supabase) return readQuickSpendConfig();
+      const remoteConfig = await fetchRemoteQuickSpendConfig(supabase);
+      const normalized = normalizeQuickSpendConfig(remoteConfig ?? readQuickSpendConfig());
+      saveQuickSpendConfig(normalized);
+      return normalized;
+    },
+    enabled: !!accounts?.length,
+    initialData: readQuickSpendConfig(),
   });
 
   useEffect(() => {
     if (!accounts?.length) return;
 
     const syncFromConfig = () => {
-      const config = readQuickSpendConfig();
+      const config = normalizeQuickSpendConfig(quickSpendConfig ?? readQuickSpendConfig(), accounts[0]?.id ?? '');
       setTemplates(config.templates.length ? config.templates : DEFAULT_QUICK_SPEND_TEMPLATES);
       const fallbackAccountId = accounts[0]?.id ?? '';
-      const configured = config.defaultAccountId && accounts.some((account) => account.id === config.defaultAccountId)
-        ? config.defaultAccountId
-        : fallbackAccountId;
+      const configured =
+        config.defaultAccountId && accounts.some((account) => account.id === config.defaultAccountId)
+          ? config.defaultAccountId
+          : fallbackAccountId;
       setAccountId(configured);
     };
 
     syncFromConfig();
     window.addEventListener(QUICK_SPEND_EVENT, syncFromConfig);
     return () => window.removeEventListener(QUICK_SPEND_EVENT, syncFromConfig);
-  }, [accounts]);
+  }, [accounts, quickSpendConfig]);
 
   const mutation = useMutation({
     mutationFn: async (data: { amount: number; note: string; account_id: string }) => {
-        if (!supabase) throw new Error('Supabase not configured');
-        const { data: result, error } = await supabase.from('transactions').insert([
-            {
-                amount: data.amount,
-                note: data.note.trim() || null,
-                type: 'expense',
-                account_id: data.account_id,
-                occurred_at: new Date().toISOString(),
-                is_planned: false,
-            }
-        ]);
-        if (error) throw error;
-        return result;
+      const payload = {
+        amount: String(data.amount),
+        note: data.note.trim() || null,
+        type: 'expense' as const,
+        account_id: data.account_id,
+        transfer_account_id: null,
+        category_id: null,
+        occurred_at: new Date().toISOString(),
+        is_planned: false,
+      };
+
+      if (!navigator.onLine || !supabase) {
+        enqueueOfflineOutboxItem({
+          id: crypto.randomUUID(),
+          kind: 'transaction-insert',
+          payload,
+          createdAt: new Date().toISOString(),
+        });
+        return { offline: true };
+      }
+
+      const { data: result, error } = await supabase.from('transactions').insert([payload]);
+      if (error) {
+        enqueueOfflineOutboxItem({
+          id: crypto.randomUUID(),
+          kind: 'transaction-insert',
+          payload,
+          createdAt: new Date().toISOString(),
+        });
+        return { offline: true };
+      }
+      return result;
     },
     onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: queryKeys.transactionWindows });
-        queryClient.invalidateQueries({ queryKey: queryKeys.dashboardTransactions });
-        queryClient.invalidateQueries({ queryKey: queryKeys.analysisTransactions });
-        queryClient.invalidateQueries({ queryKey: queryKeys.reviewTransactions });
-        queryClient.invalidateQueries({ queryKey: queryKeys.accounts });
-        setAmount('');
-        setNote('');
-        onSuccess?.();
-    }
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactionWindows });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardTransactions });
+      queryClient.invalidateQueries({ queryKey: queryKeys.analysisTransactions });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reviewTransactions });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts });
+      setAmount('');
+      setNote('');
+      onSuccess?.();
+    },
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -127,15 +163,31 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
       <div className="rounded-[--radius] border border-[--border] bg-[--bg-primary]/40 px-3 py-3 text-sm text-[--text-secondary]">
         Quick add saves a small <span className="font-medium text-[--text-primary]">expense</span>{' '}
         {accountId && accounts?.length ? (
-          <>into <span className="font-medium text-[--text-primary]">{accounts.find((account) => account.id === accountId)?.name ?? 'your default account'}</span>.</>
+          <>
+            into{' '}
+            <span className="font-medium text-[--text-primary]">
+              {accounts.find((account) => account.id === accountId)?.name ?? 'your default account'}
+            </span>
+            .
+          </>
         ) : (
-          <>after you set a default account in <span className="font-medium text-[--text-primary]">Manage</span>.</>
+          <>
+            after you set a default account in <span className="font-medium text-[--text-primary]">Manage</span>.
+          </>
         )}
       </div>
 
-      {mutation.error ? <div className="text-sm text-[--danger]">{mutation.error instanceof Error ? mutation.error.message : 'Could not add transaction.'}</div> : null}
+      {mutation.error ? (
+        <div className="text-sm text-[--danger]">
+          {mutation.error instanceof Error ? mutation.error.message : 'Could not add transaction.'}
+        </div>
+      ) : null}
 
-      <button type="submit" disabled={mutation.isPending} className="w-full rounded-[--radius] bg-[--accent] px-4 py-3 font-semibold text-[--bg-primary]">
+      <button
+        type="submit"
+        disabled={mutation.isPending}
+        className="w-full rounded-[--radius] bg-[--accent] px-4 py-3 font-semibold text-[--bg-primary]"
+      >
         {mutation.isPending ? 'Saving...' : 'Done'}
       </button>
     </form>

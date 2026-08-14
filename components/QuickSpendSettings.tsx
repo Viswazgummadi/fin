@@ -1,13 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import type { Account } from '../lib/types';
+import { createSupabaseBrowserClient } from '../utils/supabase/client';
 import {
   DEFAULT_QUICK_SPEND_TEMPLATES,
-  type QuickSpendConfig,
   readQuickSpendConfig,
-  saveQuickSpendConfig,
+  type QuickSpendConfig,
+  normalizeQuickSpendConfig,
+  saveQuickSpendConfig as saveLocal,
 } from '../lib/quick-spend';
+import { queryKeys } from '../lib/query-keys';
+import { enqueueOfflineOutboxItem, fetchRemoteQuickSpendConfig } from '../lib/offline-sync';
 
 function createTemplate() {
   return {
@@ -19,16 +24,29 @@ function createTemplate() {
 }
 
 export function QuickSpendSettings({ accounts }: { accounts: Account[] }) {
-  const [config, setConfig] = useState<QuickSpendConfig>({ defaultAccountId: '', templates: DEFAULT_QUICK_SPEND_TEMPLATES });
+  const supabase = createSupabaseBrowserClient();
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState('');
 
+  const { data: remoteConfig, isLoading } = useQuery({
+    queryKey: queryKeys.quickSpendConfig,
+    queryFn: async () => {
+      if (!supabase) return null;
+      return fetchRemoteQuickSpendConfig(supabase);
+    },
+    enabled: !!supabase,
+  });
+
+  const [config, setConfig] = useState<QuickSpendConfig>(() => normalizeQuickSpendConfig(readQuickSpendConfig(), accounts[0]?.id));
+
   useEffect(() => {
-    const stored = readQuickSpendConfig();
-    setConfig({
-      defaultAccountId: stored.defaultAccountId || accounts[0]?.id || '',
-      templates: stored.templates.length ? stored.templates : DEFAULT_QUICK_SPEND_TEMPLATES,
-    });
-  }, [accounts]);
+    const localConfig = normalizeQuickSpendConfig(readQuickSpendConfig(), accounts[0]?.id);
+    setConfig(remoteConfig ? normalizeQuickSpendConfig(remoteConfig, accounts[0]?.id) : localConfig);
+
+    if (remoteConfig) {
+      saveLocal(normalizeQuickSpendConfig(remoteConfig, accounts[0]?.id));
+    }
+  }, [remoteConfig, accounts]);
 
   const canSave = useMemo(
     () => config.templates.some((item) => item.label.trim() && item.note.trim() && Number(item.amount) > 0),
@@ -56,51 +74,81 @@ export function QuickSpendSettings({ accounts }: { accounts: Account[] }) {
     }));
   };
 
-  const save = () => {
-    const sanitized = {
-      ...config,
-      defaultAccountId: config.defaultAccountId || accounts[0]?.id || '',
-      templates: config.templates
-        .map((item) => ({
-          ...item,
-          label: item.label.trim(),
-          note: item.note.trim(),
-          amount: Number(item.amount || 0),
-        }))
-        .filter((item) => item.label && item.note && item.amount > 0),
-    };
+  const mutation = useMutation({
+    mutationFn: async (newConfig: QuickSpendConfig) => {
+      const sanitized = normalizeQuickSpendConfig(newConfig, accounts[0]?.id);
+      
+      // Always save locally immediately
+      saveLocal(sanitized);
 
-    saveQuickSpendConfig({
-      defaultAccountId: sanitized.defaultAccountId,
-      templates: sanitized.templates.length ? sanitized.templates : DEFAULT_QUICK_SPEND_TEMPLATES,
-    });
-    setConfig({
-      defaultAccountId: sanitized.defaultAccountId,
-      templates: sanitized.templates.length ? sanitized.templates : DEFAULT_QUICK_SPEND_TEMPLATES,
-    });
-    setStatus('Quick spend buttons saved.');
+      if (!navigator.onLine || !supabase) {
+        enqueueOfflineOutboxItem({
+          id: crypto.randomUUID(),
+          kind: 'quick-spend-config',
+          payload: sanitized,
+          createdAt: new Date().toISOString(),
+        });
+        return { offline: true };
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { error } = await supabase.from('user_preferences').upsert(
+        {
+          user_id: user.id,
+          quick_spend_config: sanitized,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      );
+
+      if (error) {
+        enqueueOfflineOutboxItem({
+          id: crypto.randomUUID(),
+          kind: 'quick-spend-config',
+          payload: sanitized,
+          createdAt: new Date().toISOString(),
+        });
+        return { offline: true };
+      }
+      return { success: true };
+    },
+    onSuccess: (data, variables) => {
+      const synced = normalizeQuickSpendConfig(variables, accounts[0]?.id);
+      queryClient.setQueryData(queryKeys.quickSpendConfig, synced);
+      queryClient.invalidateQueries({ queryKey: queryKeys.quickSpendConfig });
+      setStatus(data.offline ? 'Settings saved locally (will sync when online).' : 'Settings synced to cloud.');
+    },
+    onError: (error) => {
+      setStatus(error instanceof Error ? error.message : 'Could not save settings.');
+    }
+  });
+
+  const save = () => {
+    mutation.mutate(config);
   };
 
   const reset = () => {
-    const next = {
-      defaultAccountId: accounts[0]?.id || '',
-      templates: DEFAULT_QUICK_SPEND_TEMPLATES,
-    };
+    const next = normalizeQuickSpendConfig(null, accounts[0]?.id);
     setConfig(next);
-    saveQuickSpendConfig(next);
-    setStatus('Reset to defaults.');
+    mutation.mutate(next);
   };
+
+  if (isLoading) return <div className="p-4 text-sm text-[--text-secondary]">Loading quick spend settings...</div>;
 
   return (
     <section className="rounded-xl border border-[--border] bg-[--bg-secondary] p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Quick spend buttons</h2>
-          <p className="text-sm text-[--text-secondary]">Configure the small-spend popup. Set one default account and define your ready-made buttons.</p>
+          <p className="text-sm text-[--text-secondary]">Configure the small-spend popup. Settings now sync across your devices.</p>
         </div>
         <div className="flex gap-2">
           <button onClick={reset} className="rounded-[--radius] border border-[--border] px-3 py-2 text-sm">Reset</button>
-          <button onClick={save} disabled={!accounts.length || !canSave} className="rounded-[--radius] bg-[--accent] px-3 py-2 text-sm font-semibold text-[--bg-primary] disabled:opacity-60">Save</button>
+          <button onClick={save} disabled={!accounts.length || !canSave || mutation.isPending} className="rounded-[--radius] bg-[--accent] px-3 py-2 text-sm font-semibold text-[--bg-primary] disabled:opacity-60">
+            {mutation.isPending ? 'Saving...' : 'Save'}
+          </button>
         </div>
       </div>
 

@@ -492,7 +492,8 @@ Work these in order and update both this file and `PROGRESS.md` after each chunk
    - Add-only route/menu duplication has been removed so entry stays focused on header Quick + full Transactions form
    - Goal met: repeated protected-route server fetch cost is reduced on the main read-heavy views
 
-4. **Later: quick-spend sync to Supabase + offline queue and take full control** — `deferred`
-   - Fold quick-spend config into Supabase
-   - Add an offline outbox/queue for transaction mutations
-   - Keep this after nav + transactions + cached fetching so baseline UX is already fast
+4. **Later: quick-spend sync to Supabase + offline queue and take full control** — `done`
+   - Added a Supabase-backed `user_preferences` migration for quick-spend config sync
+   - Added an offline outbox/queue plus background flush for quick-spend config and transaction mutations
+   - Added pending-sync visibility in the header online badge
+   - Narrowed the floating sidebar, gave the app header the same detached glass treatment, and highlighted today in calendar surfaces

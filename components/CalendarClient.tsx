@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Transaction } from '../lib/types';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
-import { buildMonthGrid, formatMoney, summarizeDailySpend } from '../lib/insights';
+import { buildMonthGrid, formatMoney, summarizeDailySpend, toDateKey } from '../lib/insights';
 import { queryKeys } from '../lib/query-keys';
 
 const REVIEW_TRANSACTION_SELECT = 'id,type,amount,category_id,note,occurred_at,is_planned,deleted_at';
@@ -13,6 +13,7 @@ const EMPTY_TRANSACTIONS: Transaction[] = [];
 
 export function CalendarClient() {
   const supabase = createSupabaseBrowserClient();
+  const todayKey = useMemo(() => toDateKey(new Date()), []);
 
   const transactionsQuery = useQuery({
     queryKey: queryKeys.reviewTransactions,
@@ -66,9 +67,13 @@ export function CalendarClient() {
             <Link
               key={day.key}
               href={`/whathappened?date=${day.key}`}
-              className={`min-h-16 rounded-lg border p-1.5 transition sm:min-h-20 sm:p-2 ${day.inMonth ? 'border-border' : 'border-border/40 text-text-muted'} ${day.spend > 0 ? 'bg-accent/10' : 'bg-bg-primary/50'} hover:bg-bg-tertiary`}
+              className={`min-h-16 rounded-lg border p-1.5 transition sm:min-h-20 sm:p-2 ${
+                day.inMonth ? 'border-border' : 'border-border/40 text-text-muted'
+              } ${day.key === todayKey ? 'border-[--accent] ring-2 ring-[--accent]/30 bg-[--accent]/5' : ''} ${
+                day.spend > 0 ? 'bg-accent/10' : 'bg-bg-primary/50'
+              } hover:bg-bg-tertiary`}
             >
-              <div className="font-medium text-text-primary">{day.label}</div>
+              <div className={`font-medium ${day.key === todayKey ? 'text-[--accent]' : 'text-text-primary'}`}>{day.label}</div>
               <div className="mt-1 font-mono text-[10px] sm:text-[11px]">{day.spend ? formatMoney(day.spend) : '—'}</div>
             </Link>
           ))}

@@ -13,6 +13,7 @@ import {
   summarizeDailySpend,
   summarizeTopNotes,
   summarizeWeekdays,
+  toDateKey,
 } from '../lib/insights';
 import { queryKeys } from '../lib/query-keys';
 
@@ -22,6 +23,7 @@ const EMPTY_TRANSACTIONS: Transaction[] = [];
 
 export function AnalysisClient() {
   const supabase = createSupabaseBrowserClient();
+  const todayKey = useMemo(() => toDateKey(new Date()), []);
 
   const categoriesQuery = useQuery({
     queryKey: queryKeys.categories,
@@ -172,10 +174,10 @@ export function AnalysisClient() {
                   key={day.key}
                   href={`/whathappened?date=${day.key}`}
                   className={`min-h-14 rounded-lg border p-2 transition ${day.inMonth ? 'border-border' : 'border-border/40 text-text-muted'} ${
-                    day.spend > 0 ? 'bg-accent/10' : 'bg-bg-secondary'
-                  }`}
+                    day.key === todayKey ? 'border-[--accent] ring-2 ring-[--accent]/30 bg-[--accent]/5' : ''
+                  } ${day.spend > 0 ? 'bg-accent/10' : 'bg-bg-secondary'}`}
                 >
-                  <div className="font-medium text-text-primary">{day.label}</div>
+                  <div className={`font-medium ${day.key === todayKey ? 'text-[--accent]' : 'text-text-primary'}`}>{day.label}</div>
                   <div className="mt-1 font-mono text-[11px]">{day.spend ? formatMoney(day.spend) : '—'}</div>
                 </Link>
               ))}

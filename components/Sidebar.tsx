@@ -38,8 +38,8 @@ export function Sidebar() {
   };
 
   return (
-    <div className={`hidden shrink-0 transition-all duration-300 lg:block ${collapsed ? 'w-28' : 'w-80'}`}>
-      <aside className={`glass-nav fixed bottom-4 left-4 top-4 z-40 overflow-y-auto p-4 transition-all duration-300 ${collapsed ? 'w-20' : 'w-72'}`}>
+    <div className={`hidden shrink-0 transition-all duration-300 lg:block ${collapsed ? 'w-24' : 'w-72'}`}>
+      <aside className={`glass-nav fixed bottom-4 left-4 top-4 z-40 overflow-y-auto p-4 transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
         <div className="mb-6 flex items-start justify-between gap-2">
           <div className={collapsed ? 'hidden' : 'block'}>
             <div className="text-sm text-[--text-secondary]">Private money journal</div>

@@ -1,3 +1,20 @@
+### Session 32 — 2025-08-15 (Offline queue + quick-spend sync + glass/header refinement)
+Phase worked on: Item 4 — Quick-spend sync to Supabase plus offline queue / mutation outbox
+Completed:
+- Added `supabase/migrations/0005_user_preferences.sql` for synced quick-spend preferences with RLS
+- Added `lib/offline-sync.ts` plus `components/SyncManager.tsx` to queue quick-spend config and transaction mutations locally, then flush them in the background when back online
+- Updated quick-spend settings to save locally immediately, sync through Supabase, and fall back to the outbox when offline
+- Updated quick-spend capture and transaction mutations to queue cleanly when offline or on connection failure
+- Added pending-sync count to the header online badge for visible sync state
+- Reduced the floating sidebar width, applied the same detached glass treatment to the app header, and highlighted today in calendar/analysis calendar views
+- Revalidated with successful `npm run lint` and `npm run build`
+Broken / TODO:
+- Manual browser QA is still needed for offline add/update/delete flows, pending-badge behavior, and the new glass header/sidebar spacing on desktop/mobile
+- Supabase migration `0005_user_preferences.sql` still needs to be applied to the actual database environment
+Next exact step:
+- Apply the new Supabase migration, then manually test offline/online quick-spend + transactions sync on desktop/mobile
+- After QA, only polish/fixes should remain unless new product changes are requested
+
 ### Session 31 — 2025-08-15 (Calendar/journal caching + add-flow cleanup)
 Phase worked on: Item 3 completion — cached client fetching for remaining read-heavy views
 Completed:

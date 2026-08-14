@@ -14,6 +14,7 @@ import {
   toDateKey,
 } from '../lib/insights';
 import { queryKeys } from '../lib/query-keys';
+import { enqueueOfflineOutboxItem } from '../lib/offline-sync';
 
 type PlannedFilter = 'all' | 'planned' | 'unplanned';
 
@@ -153,10 +154,6 @@ export function TransactionsClient({
   };
 
   const addOrUpdateTransaction = async () => {
-    if (!supabase) {
-      setStatus('Supabase is not configured in this environment.');
-      return;
-    }
     if (!accountId) {
       setStatus('Create or select an account first.');
       return;
@@ -176,8 +173,7 @@ export function TransactionsClient({
       }
     }
 
-    setStatus('Saving...');
-    const payload: Record<string, unknown> = {
+    const payload = {
       account_id: accountId,
       transfer_account_id: type === 'transfer' ? transferAccountId : null,
       type,
@@ -188,6 +184,20 @@ export function TransactionsClient({
     };
 
     if (editingId) {
+      if (!navigator.onLine || !supabase) {
+        enqueueOfflineOutboxItem({
+          id: crypto.randomUUID(),
+          kind: 'transaction-update',
+          transactionId: editingId,
+          payload,
+          createdAt: new Date().toISOString(),
+        });
+        setStatus('Update queued (offline).');
+        resetForm();
+        return;
+      }
+
+      setStatus('Saving...');
       const { data, error } = await supabase
         .from('transactions')
         .update({ ...payload, updated_at: new Date().toISOString() })
@@ -200,11 +210,32 @@ export function TransactionsClient({
         setStatus('Transaction updated.');
         resetForm();
       } else {
-        setStatus(error?.message ?? 'Could not update transaction.');
+        enqueueOfflineOutboxItem({
+            id: crypto.randomUUID(),
+            kind: 'transaction-update',
+            transactionId: editingId,
+            payload,
+            createdAt: new Date().toISOString(),
+          });
+          setStatus('Update queued (connection error).');
+          resetForm();
       }
       return;
     }
 
+    if (!navigator.onLine || !supabase) {
+        enqueueOfflineOutboxItem({
+          id: crypto.randomUUID(),
+          kind: 'transaction-insert',
+          payload,
+          createdAt: new Date().toISOString(),
+        });
+        setStatus('Transaction queued (offline).');
+        resetForm();
+        return;
+    }
+
+    setStatus('Saving...');
     const { data, error } = await supabase.from('transactions').insert(payload).select(TRANSACTION_SELECT).single();
     if (!error && data) {
       upsertInCurrentWindow(data as Transaction);
@@ -216,7 +247,14 @@ export function TransactionsClient({
       );
       resetForm();
     } else {
-      setStatus(error?.message ?? 'Could not add transaction.');
+        enqueueOfflineOutboxItem({
+            id: crypto.randomUUID(),
+            kind: 'transaction-insert',
+            payload,
+            createdAt: new Date().toISOString(),
+          });
+          setStatus('Transaction queued (connection error).');
+          resetForm();
     }
   };
 
@@ -233,7 +271,18 @@ export function TransactionsClient({
   };
 
   const deleteTxn = async (txn: Transaction) => {
-    if (!supabase) return;
+    if (!navigator.onLine || !supabase) {
+        enqueueOfflineOutboxItem({
+            id: crypto.randomUUID(),
+            kind: 'transaction-soft-delete',
+            transactionId: txn.id,
+            createdAt: new Date().toISOString(),
+          });
+          setWindowTransactions((current) => current.filter((item) => item.id !== txn.id));
+          setStatus('Delete queued (offline).');
+          return;
+    }
+
     const { error } = await supabase.from('transactions').update({ deleted_at: new Date().toISOString() }).eq('id', txn.id);
     if (!error) {
       setWindowTransactions((current) => current.filter((item) => item.id !== txn.id));
@@ -241,12 +290,33 @@ export function TransactionsClient({
       await refreshTransactionWindows();
       setStatus('Transaction deleted.');
     } else {
-      setStatus(error.message);
+        enqueueOfflineOutboxItem({
+            id: crypto.randomUUID(),
+            kind: 'transaction-soft-delete',
+            transactionId: txn.id,
+            createdAt: new Date().toISOString(),
+          });
+          setWindowTransactions((current) => current.filter((item) => item.id !== txn.id));
+          setStatus('Delete queued (connection error).');
     }
   };
 
   const undoDelete = async () => {
-    if (!supabase || !recentlyDeleted) return;
+    if (!recentlyDeleted) return;
+
+    if (!navigator.onLine || !supabase) {
+        enqueueOfflineOutboxItem({
+            id: crypto.randomUUID(),
+            kind: 'transaction-restore',
+            transactionId: recentlyDeleted.id,
+            createdAt: new Date().toISOString(),
+          });
+          upsertInCurrentWindow(recentlyDeleted);
+          setRecentlyDeleted(null);
+          setStatus('Restore queued (offline).');
+          return;
+    }
+
     const { data, error } = await supabase
       .from('transactions')
       .update({ deleted_at: null })
@@ -259,7 +329,15 @@ export function TransactionsClient({
       await refreshTransactionWindows();
       setStatus('Transaction restored.');
     } else {
-      setStatus(error?.message ?? 'Could not restore transaction.');
+        enqueueOfflineOutboxItem({
+            id: crypto.randomUUID(),
+            kind: 'transaction-restore',
+            transactionId: recentlyDeleted.id,
+            createdAt: new Date().toISOString(),
+          });
+          upsertInCurrentWindow(recentlyDeleted);
+          setRecentlyDeleted(null);
+          setStatus('Restore queued (connection error).');
     }
   };
 
@@ -375,7 +453,7 @@ export function TransactionsClient({
             </select>
           )}
           <input className="field text-right font-mono" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          <button onClick={addOrUpdateTransaction} className="btn-primary">{editingId ? 'Update' : 'Add'} transaction</button>
+          <button onClick={addOrUpdateTransaction} className="btn-primary">Add/Update</button>
         </div>
         <input className="field" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} />
         <label className="flex items-center gap-2 text-sm text-[--text-secondary]">
