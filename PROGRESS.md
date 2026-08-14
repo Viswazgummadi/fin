@@ -1,3 +1,15 @@
+### Session 34 — 2025-08-15 (Sidebar state flicker fix + transparency alignment)
+Phase worked on: UI polish follow-up
+Completed:
+- Fixed desktop sidebar collapsed-state flicker by initializing from local storage during state creation instead of expanding first and correcting later
+- Made the floating sidebar glass treatment lighter / more transparent
+- Reverted the app header back to the previous simpler sticky header treatment
+- Tightened collapsed-sidebar alignment so toggle/button/icon text stays centered more consistently
+Broken / TODO:
+- Still needs manual browser QA for cross-page navigation, collapsed-sidebar alignment, and transparency balance on different displays
+Next exact step:
+- Verify sidebar behavior across route changes and tweak only if any remaining visual drift is noticed
+
 ### Session 33 — 2025-08-15 (Mobile polish + optimistic offline UX)
 Phase worked on: Post-item-4 polish
 Completed:

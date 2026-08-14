@@ -11,7 +11,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <SyncManager />
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col pb-20 lg:pb-0">
-        <header className="glass-nav sticky top-2 z-30 mx-3 mb-2 mt-3 border border-[--border] px-3 py-3 sm:top-3 sm:mx-4 sm:px-4 lg:mx-4 lg:mr-6 lg:mt-4">
+        <header className="sticky top-0 z-30 border-b border-[--border] bg-[--bg-primary]/90 px-3 py-3 backdrop-blur-sm sm:px-4 lg:px-6">
           <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
             <Link href="/" className="min-w-0">
               <div className="truncate text-sm font-medium tracking-wide">Finance Journal</div>
