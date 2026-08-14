@@ -1,3 +1,15 @@
+### Session 33 — 2025-08-15 (Mobile polish + optimistic offline UX)
+Phase worked on: Post-item-4 polish
+Completed:
+- Tightened mobile shell spacing so the detached glass header sits cleaner on small screens
+- Reduced bottom-sheet overlap risk in the quick-spend modal using safe-area-aware padding
+- Improved offline transaction UX with optimistic local add/update behavior before sync
+- Restored clearer transaction CTA copy (`Add transaction` / `Update transaction`)
+Broken / TODO:
+- Still needs real browser/device QA for long-note rows, bottom-nav overlap, and offline restore behavior after a full refresh
+Next exact step:
+- Manually QA the polished mobile shell and offline transaction flow, then only fix any issues found
+
 ### Session 32 — 2025-08-15 (Offline queue + quick-spend sync + glass/header refinement)
 Phase worked on: Item 4 — Quick-spend sync to Supabase plus offline queue / mutation outbox
 Completed:

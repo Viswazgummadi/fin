@@ -142,6 +142,25 @@ export function TransactionsClient({
     setWindowTransactions((current) => [txn, ...current.filter((item) => item.id !== txn.id)]);
   };
 
+  const buildOptimisticTransaction = (
+    overrides: Partial<Transaction> & Pick<Transaction, 'account_id' | 'type' | 'amount' | 'occurred_at'>
+  ): Transaction => ({
+    id: overrides.id ?? `local-${crypto.randomUUID()}`,
+    user_id: '',
+    account_id: overrides.account_id,
+    transfer_account_id: overrides.transfer_account_id ?? null,
+    type: overrides.type,
+    amount: overrides.amount,
+    category_id: overrides.category_id ?? null,
+    note: overrides.note ?? null,
+    occurred_at: overrides.occurred_at,
+    is_planned: overrides.is_planned ?? true,
+    recurring_rule_id: null,
+    created_at: overrides.created_at ?? overrides.occurred_at,
+    updated_at: overrides.updated_at ?? overrides.occurred_at,
+    deleted_at: overrides.deleted_at ?? null,
+  });
+
   const resetForm = () => {
     setEditingId(null);
     setAmount('');
@@ -185,6 +204,19 @@ export function TransactionsClient({
 
     if (editingId) {
       if (!navigator.onLine || !supabase) {
+        const optimistic = buildOptimisticTransaction({
+          id: editingId,
+          account_id: payload.account_id as string,
+          transfer_account_id: (payload.transfer_account_id as string | null) ?? null,
+          type: payload.type as Transaction['type'],
+          amount: String(payload.amount),
+          category_id: (payload.category_id as string | null) ?? null,
+          note: (payload.note as string | null) ?? null,
+          occurred_at: new Date().toISOString(),
+          is_planned: payload.is_planned as boolean,
+          updated_at: new Date().toISOString(),
+        });
+        upsertInCurrentWindow(optimistic);
         enqueueOfflineOutboxItem({
           id: crypto.randomUUID(),
           kind: 'transaction-update',
@@ -210,6 +242,19 @@ export function TransactionsClient({
         setStatus('Transaction updated.');
         resetForm();
       } else {
+        const optimistic = buildOptimisticTransaction({
+          id: editingId,
+          account_id: payload.account_id as string,
+          transfer_account_id: (payload.transfer_account_id as string | null) ?? null,
+          type: payload.type as Transaction['type'],
+          amount: String(payload.amount),
+          category_id: (payload.category_id as string | null) ?? null,
+          note: (payload.note as string | null) ?? null,
+          occurred_at: new Date().toISOString(),
+          is_planned: payload.is_planned as boolean,
+          updated_at: new Date().toISOString(),
+        });
+        upsertInCurrentWindow(optimistic);
         enqueueOfflineOutboxItem({
             id: crypto.randomUUID(),
             kind: 'transaction-update',
@@ -224,6 +269,17 @@ export function TransactionsClient({
     }
 
     if (!navigator.onLine || !supabase) {
+        const optimistic = buildOptimisticTransaction({
+          account_id: payload.account_id as string,
+          transfer_account_id: (payload.transfer_account_id as string | null) ?? null,
+          type: payload.type as Transaction['type'],
+          amount: String(payload.amount),
+          category_id: (payload.category_id as string | null) ?? null,
+          note: (payload.note as string | null) ?? null,
+          occurred_at: new Date().toISOString(),
+          is_planned: payload.is_planned as boolean,
+        });
+        upsertInCurrentWindow(optimistic);
         enqueueOfflineOutboxItem({
           id: crypto.randomUUID(),
           kind: 'transaction-insert',
@@ -247,6 +303,17 @@ export function TransactionsClient({
       );
       resetForm();
     } else {
+        const optimistic = buildOptimisticTransaction({
+          account_id: payload.account_id as string,
+          transfer_account_id: (payload.transfer_account_id as string | null) ?? null,
+          type: payload.type as Transaction['type'],
+          amount: String(payload.amount),
+          category_id: (payload.category_id as string | null) ?? null,
+          note: (payload.note as string | null) ?? null,
+          occurred_at: new Date().toISOString(),
+          is_planned: payload.is_planned as boolean,
+        });
+        upsertInCurrentWindow(optimistic);
         enqueueOfflineOutboxItem({
             id: crypto.randomUUID(),
             kind: 'transaction-insert',
@@ -453,7 +520,7 @@ export function TransactionsClient({
             </select>
           )}
           <input className="field text-right font-mono" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          <button onClick={addOrUpdateTransaction} className="btn-primary">Add/Update</button>
+          <button onClick={addOrUpdateTransaction} className="btn-primary">{editingId ? 'Update transaction' : 'Add transaction'}</button>
         </div>
         <input className="field" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} />
         <label className="flex items-center gap-2 text-sm text-[--text-secondary]">
