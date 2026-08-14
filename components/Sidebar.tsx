@@ -38,34 +38,36 @@ export function Sidebar() {
   };
 
   return (
-    <aside className={`glass-nav hidden p-4 transition-all duration-300 lg:block ${collapsed ? 'w-20' : 'w-72'}`}>
-      <div className="mb-6 flex items-start justify-between gap-2">
-        <div className={collapsed ? 'hidden' : 'block'}>
-          <div className="text-sm text-[--text-secondary]">Private money journal</div>
-          <div className="bg-gradient-to-r from-[--text-primary] to-[--accent] bg-clip-text font-mono text-xl text-transparent">Calm finance</div>
+    <div className={`hidden shrink-0 transition-all duration-300 lg:block ${collapsed ? 'w-28' : 'w-80'}`}>
+      <aside className={`glass-nav fixed bottom-4 left-4 top-4 z-40 overflow-y-auto p-4 transition-all duration-300 ${collapsed ? 'w-20' : 'w-72'}`}>
+        <div className="mb-6 flex items-start justify-between gap-2">
+          <div className={collapsed ? 'hidden' : 'block'}>
+            <div className="text-sm text-[--text-secondary]">Private money journal</div>
+            <div className="bg-gradient-to-r from-[--text-primary] to-[--accent] bg-clip-text font-mono text-xl text-transparent">Calm finance</div>
+          </div>
+          <button onClick={toggle} className="btn-ghost px-2 py-1 text-sm">
+            {collapsed ? '→' : '←'}
+          </button>
         </div>
-        <button onClick={toggle} className="btn-ghost px-2 py-1 text-sm">
-          {collapsed ? '→' : '←'}
-        </button>
-      </div>
-      <nav className="space-y-2">
-        {links.map(([label, href]) => {
-          const active = isActivePath(pathname, href);
-          return (
-            <Link
-              key={label}
-              href={href}
-              aria-current={active ? 'page' : undefined}
-              className={`nav-link block min-h-11 rounded-[--radius] px-3 py-2 text-sm ${
-                active ? 'nav-link-active text-[--text-primary]' : 'text-[--text-secondary]'
-              } ${collapsed ? 'text-center' : ''}`}
-              title={label}
-            >
-              <span className="relative z-[1]">{collapsed ? label.slice(0, 1) : label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-    </aside>
+        <nav className="space-y-2">
+          {links.map(([label, href]) => {
+            const active = isActivePath(pathname, href);
+            return (
+              <Link
+                key={label}
+                href={href}
+                aria-current={active ? 'page' : undefined}
+                className={`nav-link block min-h-11 rounded-[--radius] px-3 py-2 text-sm ${
+                  active ? 'nav-link-active text-[--text-primary]' : 'text-[--text-secondary]'
+                } ${collapsed ? 'text-center' : ''}`}
+                title={label}
+              >
+                <span className="relative z-[1]">{collapsed ? label.slice(0, 1) : label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      </aside>
+    </div>
   );
 }

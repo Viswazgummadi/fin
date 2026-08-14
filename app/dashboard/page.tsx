@@ -1,25 +1,10 @@
 import { AppShell } from '../../components/AppShell';
-import { getAccounts, getCategories, getTransactions } from '../../lib/data';
-import { getRecentTransactions, summarizeCategories } from '../../lib/insights';
 import { DashboardClient } from '../../components/DashboardClient';
 
-export const dynamic = 'force-dynamic';
-
-export default async function DashboardPage() {
-  const [accounts, categories, transactions] = await Promise.all([
-    getAccounts(),
-    getCategories(),
-    getTransactions({
-      limit: 300,
-      select: 'id,type,amount,category_id,note,occurred_at,deleted_at',
-    }),
-  ]);
-  const recent = getRecentTransactions(transactions, 8);
-  const topCategories = summarizeCategories(transactions, categories).slice(0, 5);
-
+export default function DashboardPage() {
   return (
     <AppShell>
-      <DashboardClient recent={recent} topCategories={topCategories} accounts={accounts} transactions={transactions} />
+      <DashboardClient />
     </AppShell>
   );
 }

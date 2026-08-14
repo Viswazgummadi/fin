@@ -1,3 +1,20 @@
+### Session 30 — 2025-08-15 (Client-cached dashboard/analysis + floating sidebar)
+Phase worked on: Item 3 — Move more pages to React Query cached client fetching after initial shell
+Completed:
+- Moved `/dashboard` and `/analysis` away from server-side data fetching into client-side React Query fetching after the shell renders
+- Added shared query keys plus better React Query defaults so cached views stay warm and route revisits feel faster
+- Wired quick-spend and transaction mutations to invalidate dashboard/analysis/account caches correctly
+- Converted the desktop sidebar into a detached floating glassmorphism panel that stays fixed instead of scrolling with page content
+- Strengthened the glass visual treatment for the desktop sidebar to better match the floating-menu direction
+- Revalidated with successful `npm run lint` and `npm run build`
+Broken / TODO:
+- Manual desktop/mobile QA is still needed for the floating sidebar spacing, collapsed state, and page-content alignment on long screens
+- `/calendar` and `/whathappened` still use server-side data fetching and remain candidates if we continue item 3 further
+- Quick-spend config is still local-only and offline mutation queue is still not implemented
+Next exact step:
+- Browser-QA dashboard, analysis, transactions, and the floating sidebar together on desktop/mobile breakpoints
+- Then decide whether item 3 should continue with calendar/day-journal or stop and move later to quick-spend sync + offline queue
+
 ### Session 29 — 2025-08-15 (Transactions windowing + add-flow cleanup)
 Phase worked on: Item 2 — Date-window transactions, plus structure cleanup around Add
 Completed:

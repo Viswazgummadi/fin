@@ -10,6 +10,7 @@ import {
   readQuickSpendConfig,
   type QuickSpendTemplate,
 } from '../lib/quick-spend';
+import { queryKeys } from '../lib/query-keys';
 
 export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
   const [amount, setAmount] = useState('');
@@ -20,7 +21,7 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
   const queryClient = useQueryClient();
 
   const { data: accounts } = useQuery({
-    queryKey: ['accounts'],
+    queryKey: queryKeys.accounts,
     queryFn: async () => {
       if (!supabase) return [];
       const { data } = await supabase.from('accounts').select('*').eq('archived', false);
@@ -64,8 +65,10 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
         return result;
     },
     onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['transactions'] });
-        queryClient.invalidateQueries({ queryKey: ['accounts'] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.transactionWindows });
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboardTransactions });
+        queryClient.invalidateQueries({ queryKey: queryKeys.analysisTransactions });
+        queryClient.invalidateQueries({ queryKey: queryKeys.accounts });
         setAmount('');
         setNote('');
         onSuccess?.();

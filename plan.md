@@ -486,8 +486,9 @@ Work these in order and update both this file and `PROGRESS.md` after each chunk
    - Month-to-month switching now uses React Query cached client fetching for the transactions page
    - Added a proper post-delete undo surface instead of a dead per-row undo button
 
-3. **Move more pages to React Query cached client fetching after initial shell** — `queued`
-   - Start with the heaviest authenticated views after transactions are windowed
+3. **Move more pages to React Query cached client fetching after initial shell** — `in progress`
+   - Dashboard and Analysis now load their data on the client with React Query after the shell renders
+   - Shared query keys now let quick-spend and transaction mutations invalidate those cached views cleanly
    - Goal: reduce repeated protected-route server fetch cost and improve back/forward responsiveness
 
 4. **Later: quick-spend sync to Supabase + offline queue and take full control** — `deferred`

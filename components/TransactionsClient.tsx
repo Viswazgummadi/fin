@@ -13,6 +13,7 @@ import {
   shiftMonthKey,
   toDateKey,
 } from '../lib/insights';
+import { queryKeys } from '../lib/query-keys';
 
 type PlannedFilter = 'all' | 'planned' | 'unplanned';
 
@@ -59,7 +60,7 @@ export function TransactionsClient({
   const transferOptions = useMemo(() => accounts.filter((a) => a.id !== accountId), [accounts, accountId]);
   const windowRange = useMemo(() => getMonthRangeForQuery(windowMonthKey), [windowMonthKey]);
   const windowLabel = useMemo(() => formatMonthLabel(windowMonthKey), [windowMonthKey]);
-  const transactionsQueryKey = useMemo(() => ['transactions-window', windowMonthKey] as const, [windowMonthKey]);
+  const transactionsQueryKey = useMemo(() => [...queryKeys.transactionWindows, windowMonthKey] as const, [windowMonthKey]);
 
   const {
     data: transactions = initialTransactions,
@@ -128,8 +129,10 @@ export function TransactionsClient({
   };
 
   const refreshTransactionWindows = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['transactions-window'] });
-    await queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.transactionWindows });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.dashboardTransactions });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.analysisTransactions });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.accounts });
   };
 
   const upsertInCurrentWindow = (txn: Transaction) => {
