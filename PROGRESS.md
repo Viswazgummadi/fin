@@ -1,13 +1,12 @@
-### Session 19 — 2025-08-13
-Phase worked on: UX + analysis improvement pass
+### Session 20 — 2025-08-13
+Phase worked on: Usability + restore pass
 Completed:
-- Added Samsung S25 Ultra friendly mobile navigation and safe-area bottom bar
-- Added a more useful dashboard with current-month totals, recent transactions, and top categories
-- Implemented data-driven Analysis, Calendar, Forecast, What Happened, More, and Settings export views
-- Added a PWA manifest and improved metadata
+- Added proper transfer source/target handling in transaction entry and display
+- Added account balances so transfers are visible from the accounts page
+- Added backup restore flow with JSON file import and replace-my-data restore
+- Extended starter data so transfer testing is immediately possible
 Broken / TODO:
-- Transfer transactions still need dedicated source/target account handling
-- Settings import/restore flow is still not implemented
-- Advanced analysis visuals like Sankey and anomaly detection can be added later
+- Restore currently covers accounts, categories, and transactions only
+- Future features like Sankey and anomaly detection are still planned
 Next exact step:
-- Test the new routes on mobile, then fine-tune transaction transfer logic and import/restore
+- Test transfer entry on the browser, verify account balances, and test backup restore

@@ -54,6 +54,26 @@ export function SetupStarterData() {
       createdAccount = data;
     }
 
+    const { data: secondAccount, error: secondAccountError } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('name', 'Cash wallet')
+      .maybeSingle();
+
+    if (!secondAccount && !secondAccountError) {
+      const { error } = await supabase
+        .from('accounts')
+        .insert({ name: 'Cash wallet', type: 'cash', opening_balance: 0, currency: 'INR' })
+        .select('*')
+        .single();
+      if (error) {
+        setMessage(error.message);
+        setLoading(false);
+        return;
+      }
+    }
+
     if (!createdCategory) {
       const { data, error } = await supabase
         .from('categories')
@@ -69,7 +89,7 @@ export function SetupStarterData() {
     }
 
     if (createdAccount && createdCategory) {
-      setMessage('Starter account and category are ready. You can now add transactions.');
+      setMessage('Starter accounts and category are ready. You can now add transactions and transfers.');
       router.refresh();
     }
 

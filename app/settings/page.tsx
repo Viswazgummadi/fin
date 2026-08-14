@@ -1,5 +1,5 @@
 import { AppShell } from '../../components/AppShell';
-import { ExportBackupClient } from '../../components/ExportBackupClient';
+import { BackupRestoreClient } from '../../components/BackupRestoreClient';
 import { getAccounts, getCategories, getTransactions } from '../../lib/data';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,7 @@ export default async function SettingsPage() {
           <h1 className="text-3xl font-semibold">Settings</h1>
           <p className="mt-2 max-w-3xl text-sm text-text-secondary">Backup/export, shortcuts, and future import/AI features.</p>
         </div>
-        <ExportBackupClient snapshot={snapshot} />
+        <BackupRestoreClient snapshot={snapshot} />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <Card title="Shortcuts" text="n = new transaction, / = search, esc = close modal, g d = dashboard." />
           <Card title="Theme" text="Dark-first design is enabled by default for low-light and mobile use." />

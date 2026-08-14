@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { Account, Category, Transaction } from '../lib/types';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
+import { formatMoney } from '../lib/insights';
 
 export function TransactionsClient({
   initialTransactions,
@@ -16,6 +17,7 @@ export function TransactionsClient({
   const supabase = createSupabaseBrowserClient();
   const [transactions, setTransactions] = useState(initialTransactions);
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '');
+  const [transferAccountId, setTransferAccountId] = useState(accounts.find((a) => a.id !== accounts[0]?.id)?.id ?? '');
   const [categoryId, setCategoryId] = useState(categories[0]?.id ?? '');
   const [type, setType] = useState<Transaction['type']>('expense');
   const [amount, setAmount] = useState('');
@@ -26,6 +28,7 @@ export function TransactionsClient({
   const categoryOptions = useMemo(() => categories.filter((c) => c.kind === 'both' || c.kind === type), [categories, type]);
   const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
   const categoryMap = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
+  const transferOptions = useMemo(() => accounts.filter((a) => a.id !== accountId), [accounts, accountId]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -34,6 +37,7 @@ export function TransactionsClient({
     setType('expense');
     setCategoryId(categories[0]?.id ?? '');
     setAccountId(accounts[0]?.id ?? '');
+    setTransferAccountId(accounts.find((a) => a.id !== accounts[0]?.id)?.id ?? '');
   };
 
   const addOrUpdateTransaction = async () => {
@@ -49,10 +53,21 @@ export function TransactionsClient({
       setStatus('Enter a valid amount.');
       return;
     }
+    if (type === 'transfer') {
+      if (!transferAccountId) {
+        setStatus('Choose a target account for this transfer.');
+        return;
+      }
+      if (transferAccountId === accountId) {
+        setStatus('Transfer source and target must be different.');
+        return;
+      }
+    }
 
     setStatus('Saving...');
     const payload: Record<string, unknown> = {
       account_id: accountId,
+      transfer_account_id: type === 'transfer' ? transferAccountId : null,
       type,
       amount,
       note: note || null,
@@ -90,6 +105,7 @@ export function TransactionsClient({
     setEditingId(txn.id);
     setAccountId(txn.account_id);
     setType(txn.type);
+    setTransferAccountId(txn.transfer_account_id ?? '');
     setCategoryId(txn.category_id ?? '');
     setAmount(txn.amount);
     setNote(txn.note ?? '');
@@ -121,21 +137,28 @@ export function TransactionsClient({
   return (
     <div className="space-y-4">
       <div className="grid gap-3 md:grid-cols-5">
-        <select className="rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+        <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
           {accounts.length ? accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>) : <option value="">No accounts yet</option>}
         </select>
-        <select className="rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={type} onChange={(e) => setType(e.target.value as Transaction['type'])}>
+        <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={type} onChange={(e) => setType(e.target.value as Transaction['type'])}>
           <option value="expense">Expense</option>
           <option value="income">Income</option>
           <option value="transfer">Transfer</option>
         </select>
-        <select className="rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} disabled={type === 'transfer'}>
-          {categoryOptions.length ? categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>) : <option value="">No categories</option>}
-        </select>
-        <input className="rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
-        <button onClick={addOrUpdateTransaction} className="rounded-lg bg-accent px-4 py-2 font-medium text-black">{editingId ? 'Update' : 'Add'} transaction</button>
+        {type === 'transfer' ? (
+          <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={transferAccountId} onChange={(e) => setTransferAccountId(e.target.value)}>
+            <option value="">Target account</option>
+            {transferOptions.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        ) : (
+          <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            {categoryOptions.length ? categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>) : <option value="">No categories</option>}
+          </select>
+        )}
+        <input className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        <button onClick={addOrUpdateTransaction} className="min-h-11 rounded-lg bg-accent px-4 py-2 font-medium text-black">{editingId ? 'Update' : 'Add'} transaction</button>
       </div>
-      <input className="w-full rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} />
+      <input className="w-full rounded-lg border border-border bg-bg-tertiary px-3 py-2 min-h-11" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} />
       {status ? <div className="rounded-lg border border-border bg-bg-secondary px-3 py-2 text-sm text-text-secondary">{status}</div> : null}
       {editingId ? <button onClick={resetForm} className="text-sm text-text-secondary">Cancel edit</button> : null}
       <div className="space-y-2">
@@ -143,17 +166,18 @@ export function TransactionsClient({
           <div key={t.id} className="rounded-xl border border-border bg-bg-secondary p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="font-mono">₹{Number(t.amount).toFixed(2)} · {t.type}</div>
+                <div className="font-mono">{formatMoney(Number(t.amount))} · {t.type}</div>
                 <div className="text-sm text-text-secondary">
-                  {accountMap.get(t.account_id) ?? 'Unknown account'}
-                  {t.category_id ? ` · ${categoryMap.get(t.category_id) ?? 'Unknown category'}` : ''}
+                  {t.type === 'transfer'
+                    ? `${accountMap.get(t.account_id) ?? 'Unknown account'} → ${t.transfer_account_id ? accountMap.get(t.transfer_account_id) ?? 'Unknown target' : 'No target'}`
+                    : `${accountMap.get(t.account_id) ?? 'Unknown account'}${t.category_id ? ` · ${categoryMap.get(t.category_id) ?? 'Unknown category'}` : ''}`}
                 </div>
                 <div className="text-sm text-text-secondary">{t.note ?? 'No note'}</div>
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => startEdit(t)} className="rounded-lg border border-border px-3 py-1 text-sm">Edit</button>
-                <button onClick={() => deleteTxn(t.id)} className="rounded-lg border border-border px-3 py-1 text-sm">Delete</button>
-                <button onClick={() => undoDelete(t)} className="rounded-lg border border-border px-3 py-1 text-sm">Undo</button>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => startEdit(t)} className="min-h-9 rounded-lg border border-border px-3 py-1 text-sm">Edit</button>
+                <button onClick={() => deleteTxn(t.id)} className="min-h-9 rounded-lg border border-border px-3 py-1 text-sm">Delete</button>
+                <button onClick={() => undoDelete(t)} className="min-h-9 rounded-lg border border-border px-3 py-1 text-sm">Undo</button>
               </div>
             </div>
           </div>

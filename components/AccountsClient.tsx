@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from 'react';
-import type { Account } from '../lib/types';
+import { useMemo, useState } from 'react';
+import type { Account, Transaction } from '../lib/types';
+import { calculateAccountBalances } from '../lib/finance';
+import { formatMoney } from '../lib/insights';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 
-export function AccountsClient({ initialAccounts }: { initialAccounts: Account[] }) {
+export function AccountsClient({ initialAccounts, transactions }: { initialAccounts: Account[]; transactions: Transaction[] }) {
   const supabase = createSupabaseBrowserClient();
   const [accounts, setAccounts] = useState(initialAccounts);
   const [name, setName] = useState('');
   const [type, setType] = useState<Account['type']>('bank');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const balances = useMemo(() => calculateAccountBalances(accounts, transactions), [accounts, transactions]);
 
   const reset = () => {
     setEditingId(null);
@@ -62,7 +65,8 @@ export function AccountsClient({ initialAccounts }: { initialAccounts: Account[]
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="font-medium">{a.name}</div>
-                <div className="text-sm text-text-secondary">{a.type} · Opening balance {a.opening_balance}</div>
+                <div className="text-sm text-text-secondary">{a.type} · Balance {formatMoney(balances.get(a.id) ?? 0)}</div>
+                <div className="text-xs text-text-muted">Opening {formatMoney(Number(a.opening_balance || 0))}</div>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => edit(a)} className="rounded-lg border border-border px-3 py-1 text-sm">Edit</button>

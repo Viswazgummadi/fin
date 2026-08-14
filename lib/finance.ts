@@ -1,14 +1,39 @@
 import type { Account, Transaction } from './types';
 
-export function calculateTotalBalance(accounts: Account[], transactions: Transaction[]) {
-  const opening = accounts.reduce((sum, account) => sum + Number(account.opening_balance || 0), 0);
-  const movement = transactions.reduce((sum, txn) => {
+export function calculateAccountBalances(accounts: Account[], transactions: Transaction[]) {
+  const balances = new Map<string, number>();
+
+  for (const account of accounts) {
+    balances.set(account.id, Number(account.opening_balance || 0));
+  }
+
+  for (const txn of transactions) {
     const amount = Number(txn.amount || 0);
-    if (txn.type === 'income') return sum + amount;
-    if (txn.type === 'expense') return sum - amount;
-    return sum;
-  }, 0);
-  return opening + movement;
+    if (!amount || txn.deleted_at) continue;
+
+    if (txn.type === 'income') {
+      balances.set(txn.account_id, (balances.get(txn.account_id) ?? 0) + amount);
+      continue;
+    }
+
+    if (txn.type === 'expense') {
+      balances.set(txn.account_id, (balances.get(txn.account_id) ?? 0) - amount);
+      continue;
+    }
+
+    if (txn.type === 'transfer') {
+      balances.set(txn.account_id, (balances.get(txn.account_id) ?? 0) - amount);
+      if (txn.transfer_account_id) {
+        balances.set(txn.transfer_account_id, (balances.get(txn.transfer_account_id) ?? 0) + amount);
+      }
+    }
+  }
+
+  return balances;
+}
+
+export function calculateTotalBalance(accounts: Account[], transactions: Transaction[]) {
+  return [...calculateAccountBalances(accounts, transactions).values()].reduce((sum, value) => sum + value, 0);
 }
 
 export function calculateMonthlyTotals(transactions: Transaction[]) {
