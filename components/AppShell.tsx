@@ -1,34 +1,27 @@
 import Link from 'next/link';
 import { Sidebar } from './Sidebar';
-import { AuthButtons } from './AuthButtons';
-import { MobileBottomNav } from './MobileBottomNav';
 import { OnlineStatus } from './OnlineStatus';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-[100dvh] bg-bg-primary text-text-primary lg:flex">
+    <div className="flex min-h-screen bg-[--bg-primary]">
       <Sidebar />
-      <div className="flex-1 pb-24 lg:pb-0">
-        <header className="sticky top-0 z-30 border-b border-border bg-bg-secondary/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-bg-secondary/80">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-            <div>
-              <Link href="/dashboard" className="block text-sm text-text-secondary hover:text-text-primary">
-                Personal Finance Journal
-              </Link>
-              <div className="text-xs text-text-muted">Private, single-user, manual entry</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Link className="rounded-lg border border-border bg-bg-tertiary px-3 py-2 text-sm min-h-11 inline-flex items-center" href="/add">
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="sticky top-0 z-30 border-b border-thin bg-[--bg-primary]/80 backdrop-blur-sm">
+          <div className="flex items-center justify-between px-4 py-3 max-w-6xl mx-auto w-full">
+            <h1 className="text-sm font-medium tracking-wide">Finance Journal</h1>
+            <div className="flex items-center gap-3">
+              <OnlineStatus />
+              <Link href="/add" className="px-3 py-1.5 bg-[--accent] text-[--bg-primary] text-sm font-semibold rounded-[--radius] hover:opacity-90">
                 + Add
               </Link>
-              <OnlineStatus />
-              <AuthButtons />
             </div>
           </div>
         </header>
-        <main className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">{children}</main>
+        <main className="flex-1 p-4 md:p-6 mx-auto w-full max-w-6xl">
+          {children}
+        </main>
       </div>
-      <MobileBottomNav />
     </div>
   );
 }

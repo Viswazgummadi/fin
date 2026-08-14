@@ -7,18 +7,9 @@ const links = [
   ['Dashboard', '/dashboard'],
   ['Transactions', '/transactions'],
   ['Add', '/add'],
-  ['What happened', '/whathappened'],
   ['Analysis', '/analysis'],
-  ['Calendar', '/calendar'],
-  ['Recurring rules', '/recurring-rules'],
-  ['Tags', '/tags'],
-  ['Accounts', '/accounts'],
-  ['Categories', '/categories'],
-  ['People', '/people'],
-  ['Goals', '/goals'],
-  ['Limits', '/limits'],
+  ['Manage', '/manage'],
   ['Settings', '/settings'],
-  ['More', '/more'],
 ];
 
 export function Sidebar() {

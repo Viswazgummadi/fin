@@ -14,9 +14,7 @@
   --accent-2: #6366f1;
   --danger: #f43f5e;
   --warning: #f59e0b;
-  --radius: 10px;
-  --font-sans: Inter, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --radius: 8px;
 }
 
 html, body {
@@ -24,9 +22,14 @@ html, body {
   padding: 0;
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: var(--font-sans);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-feature-settings: "tnum"; /* Crucial for financial columns */
 }
 
 * {
   box-sizing: border-box;
 }
+
+/* Utilities for "Top Tier" look */
+.border-thin { border: 1px solid var(--border); }
+.font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }

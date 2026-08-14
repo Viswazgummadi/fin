@@ -2,14 +2,9 @@ import Link from 'next/link';
 import { AppShell } from '../../components/AppShell';
 
 const shortcuts = [
-  ['Quick add', '/add', 'Fast manual entry for one-tap transaction logging.'],
-  ['What happened', '/whathappened', 'Daily journal view with per-day transaction summaries.'],
-  ['Recurring rules', '/recurring-rules', 'Scheduled money flows and bill reminders.'],
-  ['Tags', '/tags', 'Labels for faster filtering and organization.'],
-  ['People', '/people', 'Track lend/borrow and settlements.'],
-  ['Goals', '/goals', 'Goal progress and contribution tracking.'],
-  ['Limits', '/limits', 'Spending caps and alerts.'],
-  ['Settings', '/settings', 'Backup, shortcuts, and AI toggle.'],
+  ['Analysis', '/analysis', 'Deep insights into your financial flow, trends, and patterns.'],
+  ['Manage Data', '/manage', 'Accounts, categories, people, and other organizational settings.'],
+  ['Settings', '/settings', 'Backup, app theme, and system shortcuts.'],
 ];
 
 export default function MorePage() {
