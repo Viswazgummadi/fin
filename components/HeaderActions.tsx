@@ -10,11 +10,11 @@ export function HeaderActions() {
 
   return (
     <>
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 fade-up">
         <OnlineStatus />
         <button
           onClick={() => setIsQuickAddOpen(true)}
-          className="rounded-[--radius] bg-[--accent] px-3 py-1.5 text-sm font-semibold text-[--bg-primary] hover:opacity-90"
+          className="btn-primary text-sm"
         >
           + Quick
         </button>

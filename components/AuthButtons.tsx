@@ -15,7 +15,7 @@ export function AuthButtons() {
   };
 
   return (
-    <button onClick={signOut} className="rounded-lg border border-border bg-bg-tertiary px-3 py-2 text-sm">
+    <button onClick={signOut} className="btn-secondary text-sm">
       Logout
     </button>
   );

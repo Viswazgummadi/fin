@@ -11,16 +11,17 @@ const shortcuts = [
 export default function MorePage() {
   return (
     <AppShell>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold">More</h1>
-          <p className="mt-2 max-w-3xl text-sm text-text-secondary">Secondary actions and tools optimized for mobile so you can reach everything quickly on a Samsung S25 Ultra.</p>
+      <div className="space-y-6 fade-up">
+        <div className="page-header">
+          <h1 className="page-title">More</h1>
+          <p className="page-copy">A calm overflow space for secondary actions, optimized for fast mobile access without crowding the main navigation.</p>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-2">
           {shortcuts.map(([label, href, desc]) => (
-            <Link key={href} href={href} className="rounded-xl border border-border bg-bg-secondary p-4 hover:bg-bg-tertiary">
-              <div className="font-medium">{label}</div>
-              <div className="mt-1 text-sm text-text-secondary">{desc}</div>
+            <Link key={href} href={href} className="surface-card p-4 hover:-translate-y-0.5">
+              <div className="kicker">Workspace</div>
+              <div className="mt-2 font-medium">{label}</div>
+              <div className="mt-1 text-sm text-[--text-secondary]">{desc}</div>
             </Link>
           ))}
         </div>

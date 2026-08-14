@@ -47,33 +47,40 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-4">
-        <input className="rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="Category name" value={name} onChange={(e) => setName(e.target.value)} />
-        <select className="rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={kind} onChange={(e) => setKind(e.target.value as Category['kind'])}>
-          <option value="expense">Expense</option>
-          <option value="income">Income</option>
-          <option value="both">Both</option>
-        </select>
-        <select className="rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={isEssential} onChange={(e) => setIsEssential(e.target.value as 'unknown' | 'essential' | 'optional')}>
-          <option value="unknown">Essential?</option>
-          <option value="essential">Essential</option>
-          <option value="optional">Optional</option>
-        </select>
-        <button onClick={addOrUpdate} className="rounded-lg bg-accent px-4 py-2 font-medium text-black">{editingId ? 'Update' : 'Add'} category</button>
-      </div>
-      {editingId ? <button onClick={reset} className="text-sm text-text-secondary">Cancel edit</button> : null}
-      <div className="space-y-2">
+    <div className="space-y-4 fade-up">
+      <section className="surface-card p-4">
+        <div className="mb-3">
+          <div className="kicker">Classification</div>
+          <div className="mt-1 font-medium">Create or edit category</div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-4">
+          <input className="field" placeholder="Category name" value={name} onChange={(e) => setName(e.target.value)} />
+          <select className="field" value={kind} onChange={(e) => setKind(e.target.value as Category['kind'])}>
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+            <option value="both">Both</option>
+          </select>
+          <select className="field" value={isEssential} onChange={(e) => setIsEssential(e.target.value as 'unknown' | 'essential' | 'optional')}>
+            <option value="unknown">Essential?</option>
+            <option value="essential">Essential</option>
+            <option value="optional">Optional</option>
+          </select>
+          <button onClick={addOrUpdate} className="btn-primary">{editingId ? 'Update' : 'Add'} category</button>
+        </div>
+        {editingId ? <button onClick={reset} className="btn-ghost mt-2 text-sm">Cancel edit</button> : null}
+      </section>
+
+      <div className="grid gap-3">
         {categories.map((c) => (
-          <div key={c.id} className="rounded-xl border border-border bg-bg-secondary p-4">
-            <div className="flex items-center justify-between gap-3">
+          <div key={c.id} className="surface-card p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="font-medium">{c.name}</div>
-                <div className="text-sm text-text-secondary">{c.kind}{c.is_essential === null ? '' : c.is_essential ? ' · essential' : ' · optional'}</div>
+                <div className="mt-1 text-sm text-[--text-secondary]">{c.kind}{c.is_essential === null ? '' : c.is_essential ? ' · essential' : ' · optional'}</div>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => edit(c)} className="rounded-lg border border-border px-3 py-1 text-sm">Edit</button>
-                <button onClick={() => archive(c.id)} className="rounded-lg border border-border px-3 py-1 text-sm">Archive</button>
+                <button onClick={() => edit(c)} className="btn-secondary text-sm">Edit</button>
+                <button onClick={() => archive(c.id)} className="btn-ghost text-sm">Archive</button>
               </div>
             </div>
           </div>

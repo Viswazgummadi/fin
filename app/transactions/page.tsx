@@ -9,10 +9,10 @@ export default async function TransactionsPage() {
   const [transactions, accounts, categories] = await Promise.all([getTransactions(), getAccounts(), getCategories()]);
   return (
     <AppShell>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold">Transactions</h1>
-          <p className="mt-2 max-w-3xl text-sm text-text-secondary">Search, filter, add, edit, delete, and restore with a dense mobile-friendly flow.</p>
+      <div className="space-y-6 fade-up">
+        <div className="page-header">
+          <h1 className="page-title">Transactions</h1>
+          <p className="page-copy">Dense, fast, and practical. Search deeply, filter cleanly, and edit without leaving context.</p>
         </div>
         {!accounts.length || !categories.length ? <SetupStarterData /> : null}
         <TransactionsClient initialTransactions={transactions} accounts={accounts} categories={categories} />

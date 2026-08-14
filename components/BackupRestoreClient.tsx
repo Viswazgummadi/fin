@@ -168,17 +168,25 @@ export function BackupRestoreClient() {
   };
 
   return (
-    <div className="rounded-xl border border-border bg-bg-secondary p-4 space-y-4">
-      <div>
-        <div className="font-medium">Backup / Restore</div>
-        <p className="mt-1 text-sm text-text-secondary">Export your current data as JSON or restore a previously exported backup file.</p>
+    <div className="surface-card space-y-5 p-5 fade-up">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="kicker">Safety</div>
+          <div className="mt-2 text-lg font-semibold">Backup / Restore</div>
+          <p className="mt-1 max-w-2xl text-sm text-[--text-secondary]">Export your latest data as JSON any time, or restore from a previous backup with a deliberate confirmation step.</p>
+        </div>
+        <div className="grid min-w-[220px] gap-2 text-sm text-[--text-secondary] sm:grid-cols-3 lg:grid-cols-1">
+          <div className="surface-soft px-3 py-2">JSON backup</div>
+          <div className="surface-soft px-3 py-2">Manual restore</div>
+          <div className="surface-soft px-3 py-2">User-scoped only</div>
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button onClick={download} disabled={loading} className="rounded-lg bg-accent px-4 py-2 font-medium text-black disabled:opacity-60">
+      <div className="flex flex-wrap gap-3">
+        <button onClick={download} disabled={loading} className="btn-primary disabled:opacity-60">
           {loading ? 'Preparing...' : 'Download JSON backup'}
         </button>
-        <button onClick={() => fileRef.current?.click()} className="rounded-lg border border-border px-4 py-2 font-medium">
+        <button onClick={() => fileRef.current?.click()} className="btn-secondary">
           Choose backup file
         </button>
       </div>
@@ -186,17 +194,18 @@ export function BackupRestoreClient() {
       <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => loadFile(e.target.files?.[0] ?? null)} />
 
       {loaded ? (
-        <div className="rounded-lg border border-border bg-bg-primary/50 p-3 text-sm text-text-secondary">
-          Loaded backup: {summary.accounts} accounts, {summary.categories} categories, {summary.transactions} transactions.
-          <div className="mt-2">
-            <button disabled={loading} onClick={restore} className="rounded-lg border border-border px-4 py-2 text-sm text-text-primary">
+        <div className="surface-soft p-4 text-sm text-[--text-secondary]">
+          <div className="font-medium text-[--text-primary]">Loaded backup ready</div>
+          <div className="mt-1">{summary.accounts} accounts, {summary.categories} categories, {summary.transactions} transactions.</div>
+          <div className="mt-3">
+            <button disabled={loading} onClick={restore} className="btn-secondary text-sm text-[--text-primary]">
               {loading ? 'Restoring...' : 'Restore this backup'}
             </button>
           </div>
         </div>
       ) : null}
 
-      {status ? <div className="text-sm text-text-secondary">{status}</div> : null}
+      {status ? <div className="text-sm text-[--text-secondary]">{status}</div> : null}
     </div>
   );
 }
