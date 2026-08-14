@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { Sidebar } from './Sidebar';
 import { MobileBottomNav } from './MobileBottomNav';
 import { HeaderActions } from './HeaderActions';
@@ -6,10 +7,12 @@ import { HeaderActions } from './HeaderActions';
 import { SyncManager } from './SyncManager';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const collapsed = cookies().get('fin.sidebar.collapsed')?.value === 'true';
+
   return (
     <div className="flex min-h-screen bg-[--bg-primary] text-[--text-primary]">
       <SyncManager />
-      <Sidebar />
+      <Sidebar initialCollapsed={collapsed} />
       <div className="flex min-w-0 flex-1 flex-col pb-20 lg:pb-0">
         <header className="sticky top-0 z-30 border-b border-[--border] bg-[--bg-primary]/90 px-3 py-3 backdrop-blur-sm sm:px-4 lg:px-6">
           <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">

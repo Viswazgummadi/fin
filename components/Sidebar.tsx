@@ -20,17 +20,15 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Sidebar() {
+export function Sidebar({ initialCollapsed = false }: { initialCollapsed?: boolean }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem('fin.sidebar.collapsed') === 'true';
-  });
+  const [collapsed, setCollapsed] = useState(initialCollapsed);
 
   const toggle = () => {
     setCollapsed((current) => {
       const next = !current;
       window.localStorage.setItem('fin.sidebar.collapsed', String(next));
+      document.cookie = `fin.sidebar.collapsed=${String(next)}; path=/; max-age=31536000; samesite=lax`;
       return next;
     });
   };

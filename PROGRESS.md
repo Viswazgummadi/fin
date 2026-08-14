@@ -1,3 +1,16 @@
+### Session 35 — 2025-08-15 (Sidebar persistence + collapsible transaction filters)
+Phase worked on: UX polish follow-up
+Completed:
+- Fixed cross-page sidebar persistence by storing collapsed state in a cookie so server renders the correct width/state during route changes
+- Kept local storage persistence too, but removed the expand-then-close flash on navigation
+- Converted transactions search/filter area into a compact default state with a `Show filters` toggle
+- Kept fast search always visible while moving deeper filters/stats behind the toggle to save space
+- Revalidated with successful `npm run lint` and `npm run build`
+Broken / TODO:
+- Still needs manual browser QA for route-to-route sidebar persistence and whether the compact transaction toolbar should also remember its open/closed state
+Next exact step:
+- Manually verify the sidebar stays closed across page navigation and adjust only if any residual flicker remains
+
 ### Session 34 — 2025-08-15 (Sidebar state flicker fix + transparency alignment)
 Phase worked on: UI polish follow-up
 Completed:

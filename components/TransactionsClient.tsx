@@ -48,6 +48,7 @@ export function TransactionsClient({
   const [recentlyDeleted, setRecentlyDeleted] = useState<Transaction | null>(null);
 
   const [search, setSearch] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [filterAccountId, setFilterAccountId] = useState('all');
   const [filterCategoryId, setFilterCategoryId] = useState('all');
   const [filterType, setFilterType] = useState<'all' | Transaction['type']>('all');
@@ -124,6 +125,17 @@ export function TransactionsClient({
     const transfers = filteredTransactions.filter((txn) => txn.type === 'transfer').length;
     return { income, expense, transfers };
   }, [filteredTransactions]);
+
+  const activeFilterCount = useMemo(() => {
+    return [
+      filterAccountId !== 'all',
+      filterCategoryId !== 'all',
+      filterType !== 'all',
+      filterPlanned !== 'all',
+      Boolean(dateFrom),
+      Boolean(dateTo),
+    ].filter(Boolean).length;
+  }, [filterAccountId, filterCategoryId, filterType, filterPlanned, dateFrom, dateTo]);
 
   const setWindowTransactions = (updater: (current: Transaction[]) => Transaction[]) => {
     queryClient.setQueryData<Transaction[]>(transactionsQueryKey, (current) => updater(current ?? []));
@@ -456,42 +468,58 @@ export function TransactionsClient({
           <div>
             <div className="kicker">Search</div>
             <div className="mt-1 font-semibold">Filters & overview</div>
-            <div className="text-sm text-[--text-secondary]">Search note, account, category, amount, or transfer target inside the current month window.</div>
+            <div className="text-sm text-[--text-secondary]">Search quickly, then open filters only when you need deeper narrowing.</div>
           </div>
-          <button onClick={clearFilters} className="btn-secondary text-sm">Clear filters</button>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setShowFilters((current) => !current)} className="btn-secondary text-sm">
+              {showFilters ? 'Hide filters' : `Show filters${activeFilterCount ? ` (${activeFilterCount})` : ''}`}
+            </button>
+            {(activeFilterCount || search) ? <button onClick={clearFilters} className="btn-ghost text-sm">Clear</button> : null}
+          </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-          <input className="field xl:col-span-2" placeholder="Search transactions" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <select className="field" value={filterAccountId} onChange={(e) => setFilterAccountId(e.target.value)}>
-            <option value="all">All accounts</option>
-            {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
-          </select>
-          <select className="field" value={filterType} onChange={(e) => setFilterType(e.target.value as typeof filterType)}>
-            <option value="all">All types</option>
-            <option value="expense">Expense</option>
-            <option value="income">Income</option>
-            <option value="transfer">Transfer</option>
-          </select>
-          <select className="field" value={filterPlanned} onChange={(e) => setFilterPlanned(e.target.value as PlannedFilter)}>
-            <option value="all">All planned states</option>
-            <option value="planned">Planned</option>
-            <option value="unplanned">Unplanned</option>
-          </select>
-          <select className="field" value={filterCategoryId} onChange={(e) => setFilterCategoryId(e.target.value)}>
-            <option value="all">All categories</option>
-            {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-          </select>
-          <input className="field" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-          <input className="field" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+          <input className="field" placeholder="Search transactions" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
+            <Stat title="Rows" value={String(filteredTransactions.length)} />
+            <Stat title="Expense" value={formatMoney(visibleStats.expense)} mono />
+          </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-4">
-          <Stat title="Visible rows" value={String(filteredTransactions.length)} />
-          <Stat title="Income" value={formatMoney(visibleStats.income)} mono />
-          <Stat title="Expense" value={formatMoney(visibleStats.expense)} mono />
-          <Stat title="Transfers" value={String(visibleStats.transfers)} />
-        </div>
+        {showFilters ? (
+          <>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+              <select className="field" value={filterAccountId} onChange={(e) => setFilterAccountId(e.target.value)}>
+                <option value="all">All accounts</option>
+                {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+              </select>
+              <select className="field" value={filterType} onChange={(e) => setFilterType(e.target.value as typeof filterType)}>
+                <option value="all">All types</option>
+                <option value="expense">Expense</option>
+                <option value="income">Income</option>
+                <option value="transfer">Transfer</option>
+              </select>
+              <select className="field" value={filterPlanned} onChange={(e) => setFilterPlanned(e.target.value as PlannedFilter)}>
+                <option value="all">All planned states</option>
+                <option value="planned">Planned</option>
+                <option value="unplanned">Unplanned</option>
+              </select>
+              <select className="field" value={filterCategoryId} onChange={(e) => setFilterCategoryId(e.target.value)}>
+                <option value="all">All categories</option>
+                {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+              </select>
+              <input className="field" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <input className="field" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-4">
+              <Stat title="Visible rows" value={String(filteredTransactions.length)} />
+              <Stat title="Income" value={formatMoney(visibleStats.income)} mono />
+              <Stat title="Expense" value={formatMoney(visibleStats.expense)} mono />
+              <Stat title="Transfers" value={String(visibleStats.transfers)} />
+            </div>
+          </>
+        ) : null}
       </section>
 
       <section className="surface-card space-y-3 p-4">
