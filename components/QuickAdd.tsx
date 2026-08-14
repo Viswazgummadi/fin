@@ -68,6 +68,7 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
         queryClient.invalidateQueries({ queryKey: queryKeys.transactionWindows });
         queryClient.invalidateQueries({ queryKey: queryKeys.dashboardTransactions });
         queryClient.invalidateQueries({ queryKey: queryKeys.analysisTransactions });
+        queryClient.invalidateQueries({ queryKey: queryKeys.reviewTransactions });
         queryClient.invalidateQueries({ queryKey: queryKeys.accounts });
         setAmount('');
         setNote('');

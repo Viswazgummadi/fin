@@ -15,8 +15,9 @@ export function HeaderActions() {
         <button
           onClick={() => setIsQuickAddOpen(true)}
           className="btn-primary text-sm"
+          aria-label="Open quick spend"
         >
-          + Quick
+          Quick
         </button>
         <AuthButtons />
       </div>

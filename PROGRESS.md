@@ -1,3 +1,19 @@
+### Session 31 — 2025-08-15 (Calendar/journal caching + add-flow cleanup)
+Phase worked on: Item 3 completion — cached client fetching for remaining read-heavy views
+Completed:
+- Removed the last dedicated `/add` route file so there is no separate add destination left in the app structure
+- Removed the leading plus/add icon from the header quick-entry button so the top bar only shows a single clean Quick entry point
+- Improved mobile handling for quick spend modal and daily journal controls so they fit better on smaller screens
+- Moved `/calendar` and `/whathappened` to client-side React Query fetching after the shell renders
+- Added shared review-query caching for calendar/journal and wired quick-spend + transaction mutations to invalidate it
+- Revalidated with successful `npm run lint` and `npm run build`
+Broken / TODO:
+- Manual browser QA is still needed for mobile layout, detached sidebar spacing, and cache-refresh feel across route switches
+- Quick-spend config is still local-only and offline mutation queue is still not implemented
+Next exact step:
+- Manually QA dashboard, transactions, calendar, and what-happened on mobile + desktop
+- Then move to item 4: quick-spend sync to Supabase plus offline queue / mutation outbox
+
 ### Session 30 — 2025-08-15 (Client-cached dashboard/analysis + floating sidebar)
 Phase worked on: Item 3 — Move more pages to React Query cached client fetching after initial shell
 Completed:

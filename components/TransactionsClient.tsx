@@ -132,6 +132,7 @@ export function TransactionsClient({
     await queryClient.invalidateQueries({ queryKey: queryKeys.transactionWindows });
     await queryClient.invalidateQueries({ queryKey: queryKeys.dashboardTransactions });
     await queryClient.invalidateQueries({ queryKey: queryKeys.analysisTransactions });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.reviewTransactions });
     await queryClient.invalidateQueries({ queryKey: queryKeys.accounts });
   };
 
