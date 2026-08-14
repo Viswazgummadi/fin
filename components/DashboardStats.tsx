@@ -18,10 +18,10 @@ export function DashboardStats({ accounts, transactions }: { accounts: Account[]
 
 function Stat({ title, value, subtitle }: { title: string; value: string; subtitle: string }) {
   return (
-    <div className="rounded-xl border border-border bg-bg-secondary p-4">
-      <div className="text-sm text-text-secondary">{title}</div>
+    <div className="rounded-[--radius] border-thin bg-[--bg-secondary] p-4">
+      <div className="text-sm text-[--text-secondary]">{title}</div>
       <div className="mt-2 font-mono text-2xl">{value}</div>
-      <div className="mt-1 text-xs text-text-muted">{subtitle}</div>
+      <div className="mt-1 text-xs text-[--text-muted]">{subtitle}</div>
     </div>
   );
 }

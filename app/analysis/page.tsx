@@ -14,7 +14,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export default async function AnalysisPage() {
-  const [accounts, categories, transactions] = await Promise.all([getAccounts(), getCategories(), getTransactions({ limit: 2000 })]);
+  const [accounts, categories, transactions] = await Promise.all([getAccounts(), getCategories(), getTransactions({ limit: 1000 })]);
   const categoryRows = summarizeCategories(transactions, categories);
   const weekdayRows = summarizeWeekdays(transactions);
   const topNotes = summarizeTopNotes(transactions);

@@ -12,7 +12,7 @@ type Snapshot = {
   transactions?: Transaction[];
 };
 
-export function BackupRestoreClient({ snapshot }: { snapshot: { accounts: Account[]; categories: Category[]; tags: { id: string; user_id: string; name: string; color: string | null }[]; transactions: Transaction[] } }) {
+export function BackupRestoreClient() {
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -26,7 +26,36 @@ export function BackupRestoreClient({ snapshot }: { snapshot: { accounts: Accoun
     transactions: loaded?.transactions?.length ?? 0,
   }), [loaded]);
 
-  const download = () => {
+  const download = async () => {
+    if (!supabase) {
+      setStatus('Supabase is not configured.');
+      return;
+    }
+
+    setLoading(true);
+    setStatus('Preparing backup...');
+
+    const [{ data: accounts, error: accountsError }, { data: categories, error: categoriesError }, { data: tags, error: tagsError }, { data: transactions, error: transactionsError }] = await Promise.all([
+      supabase.from('accounts').select('*').eq('archived', false),
+      supabase.from('categories').select('*').eq('archived', false),
+      supabase.from('tags').select('*').order('name', { ascending: true }),
+      supabase.from('transactions').select('*').order('occurred_at', { ascending: false }),
+    ]);
+
+    const firstError = accountsError || categoriesError || tagsError || transactionsError;
+    if (firstError) {
+      setLoading(false);
+      setStatus(firstError.message);
+      return;
+    }
+
+    const snapshot: Snapshot = {
+      accounts: accounts ?? [],
+      categories: categories ?? [],
+      tags: tags ?? [],
+      transactions: transactions ?? [],
+    };
+
     const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -34,6 +63,7 @@ export function BackupRestoreClient({ snapshot }: { snapshot: { accounts: Accoun
     a.download = `finance-backup-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    setLoading(false);
     setStatus('Backup downloaded.');
   };
 
@@ -145,8 +175,8 @@ export function BackupRestoreClient({ snapshot }: { snapshot: { accounts: Accoun
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <button onClick={download} className="rounded-lg bg-accent px-4 py-2 font-medium text-black">
-          Download JSON backup
+        <button onClick={download} disabled={loading} className="rounded-lg bg-accent px-4 py-2 font-medium text-black disabled:opacity-60">
+          {loading ? 'Preparing...' : 'Download JSON backup'}
         </button>
         <button onClick={() => fileRef.current?.click()} className="rounded-lg border border-border px-4 py-2 font-medium">
           Choose backup file
