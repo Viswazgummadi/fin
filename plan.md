@@ -462,3 +462,35 @@ Phase worked on: none yet
 Completed: n/a
 Broken / TODO: n/a
 Next exact step: Run Phase 0 (project scaffold + deploy empty shell)
+
+---
+
+## 13. Current Execution Plan (2025-08-15)
+
+Work these in order and update both this file and `PROGRESS.md` after each chunk.
+
+1. **Manual QA nav flow on desktop/mobile** — `in progress`
+   - Acceptance: desktop sidebar, mobile bottom nav, header quick spend, `/add` redirect, and route loading feel are manually verified
+   - Implementation support completed:
+     - Dashboard nav is now canonicalized to `/` in the shell nav/header
+     - Dashboard active-state now works for both `/` and `/dashboard`
+     - Nav links now expose `aria-current="page"` for clearer active-state QA/accessibility
+   - Manual QA checklist:
+     - Desktop: logo returns to dashboard, active nav state follows route, sidebar collapse persists after refresh, quick spend modal opens/closes cleanly, `/add` lands on transactions, loading skeletons appear during route switches
+     - Mobile: bottom nav highlights the current route, `More` links fan out correctly, quick spend stays reachable, safe-area spacing is intact, no nav overlap with page content, `/add` still lands on transactions
+   - Exit rule: if QA reveals latency or flow friction, fix that before starting item 2
+
+2. **Paginate or date-window transactions** — `done`
+   - Implemented as monthly date-windowing on `/transactions`
+   - Initial server load is now bounded to the current month instead of a large generic list
+   - Month-to-month switching now uses React Query cached client fetching for the transactions page
+   - Added a proper post-delete undo surface instead of a dead per-row undo button
+
+3. **Move more pages to React Query cached client fetching after initial shell** — `queued`
+   - Start with the heaviest authenticated views after transactions are windowed
+   - Goal: reduce repeated protected-route server fetch cost and improve back/forward responsiveness
+
+4. **Later: quick-spend sync to Supabase + offline queue and take full control** — `deferred`
+   - Fold quick-spend config into Supabase
+   - Add an offline outbox/queue for transaction mutations
+   - Keep this after nav + transactions + cached fetching so baseline UX is already fast

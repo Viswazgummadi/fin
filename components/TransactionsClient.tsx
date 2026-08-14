@@ -1,23 +1,39 @@
 "use client";
 
 import { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Account, Category, Transaction } from '../lib/types';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
-import { formatMoney, toDateKey } from '../lib/insights';
+import {
+  formatMoney,
+  formatMonthLabel,
+  getCurrentMonthKey,
+  getMonthKey,
+  getMonthRangeForQuery,
+  shiftMonthKey,
+  toDateKey,
+} from '../lib/insights';
 
 type PlannedFilter = 'all' | 'planned' | 'unplanned';
 
+const TRANSACTION_SELECT = 'id,account_id,transfer_account_id,type,amount,category_id,note,occurred_at,is_planned,deleted_at';
+
 export function TransactionsClient({
   initialTransactions,
+  initialMonthKey,
   accounts,
   categories,
 }: {
   initialTransactions: Transaction[];
+  initialMonthKey: string;
   accounts: Account[];
   categories: Category[];
 }) {
   const supabase = createSupabaseBrowserClient();
-  const [transactions, setTransactions] = useState(initialTransactions);
+  const queryClient = useQueryClient();
+  const currentMonthKey = useMemo(() => getCurrentMonthKey(), []);
+
+  const [windowMonthKey, setWindowMonthKey] = useState(initialMonthKey);
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '');
   const [transferAccountId, setTransferAccountId] = useState(accounts.find((a) => a.id !== accounts[0]?.id)?.id ?? '');
   const [categoryId, setCategoryId] = useState(categories[0]?.id ?? '');
@@ -27,6 +43,7 @@ export function TransactionsClient({
   const [isPlanned, setIsPlanned] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [status, setStatus] = useState('');
+  const [recentlyDeleted, setRecentlyDeleted] = useState<Transaction | null>(null);
 
   const [search, setSearch] = useState('');
   const [filterAccountId, setFilterAccountId] = useState('all');
@@ -40,6 +57,37 @@ export function TransactionsClient({
   const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
   const categoryMap = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
   const transferOptions = useMemo(() => accounts.filter((a) => a.id !== accountId), [accounts, accountId]);
+  const windowRange = useMemo(() => getMonthRangeForQuery(windowMonthKey), [windowMonthKey]);
+  const windowLabel = useMemo(() => formatMonthLabel(windowMonthKey), [windowMonthKey]);
+  const transactionsQueryKey = useMemo(() => ['transactions-window', windowMonthKey] as const, [windowMonthKey]);
+
+  const {
+    data: transactions = initialTransactions,
+    isFetching,
+    error: loadError,
+  } = useQuery({
+    queryKey: transactionsQueryKey,
+    queryFn: async () => {
+      if (!supabase) return initialTransactions;
+
+      const { data, error } = await supabase
+        .from('transactions')
+        .select(TRANSACTION_SELECT)
+        .is('deleted_at', null)
+        .gte('occurred_at', windowRange.startIso)
+        .lt('occurred_at', windowRange.endIso)
+        .order('occurred_at', { ascending: false })
+        .limit(500);
+
+      if (error) throw error;
+      return ((data as unknown) as Transaction[] | null) ?? [];
+    },
+    enabled: !!supabase,
+    initialData: windowMonthKey === initialMonthKey ? initialTransactions : undefined,
+    placeholderData: (previousData) => previousData,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
 
   const filteredTransactions = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -74,6 +122,20 @@ export function TransactionsClient({
     const transfers = filteredTransactions.filter((txn) => txn.type === 'transfer').length;
     return { income, expense, transfers };
   }, [filteredTransactions]);
+
+  const setWindowTransactions = (updater: (current: Transaction[]) => Transaction[]) => {
+    queryClient.setQueryData<Transaction[]>(transactionsQueryKey, (current) => updater(current ?? []));
+  };
+
+  const refreshTransactionWindows = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['transactions-window'] });
+    await queryClient.invalidateQueries({ queryKey: ['accounts'] });
+  };
+
+  const upsertInCurrentWindow = (txn: Transaction) => {
+    if (getMonthKey(txn.occurred_at) !== windowMonthKey) return;
+    setWindowTransactions((current) => [txn, ...current.filter((item) => item.id !== txn.id)]);
+  };
 
   const resetForm = () => {
     setEditingId(null);
@@ -126,10 +188,11 @@ export function TransactionsClient({
         .from('transactions')
         .update({ ...payload, updated_at: new Date().toISOString() })
         .eq('id', editingId)
-        .select('*')
+        .select(TRANSACTION_SELECT)
         .single();
       if (!error && data) {
-        setTransactions(transactions.map((t) => (t.id === editingId ? data : t)));
+        upsertInCurrentWindow(data as Transaction);
+        await refreshTransactionWindows();
         setStatus('Transaction updated.');
         resetForm();
       } else {
@@ -138,10 +201,15 @@ export function TransactionsClient({
       return;
     }
 
-    const { data, error } = await supabase.from('transactions').insert(payload).select('*').single();
+    const { data, error } = await supabase.from('transactions').insert(payload).select(TRANSACTION_SELECT).single();
     if (!error && data) {
-      setTransactions([data, ...transactions]);
-      setStatus('Transaction added.');
+      upsertInCurrentWindow(data as Transaction);
+      await refreshTransactionWindows();
+      setStatus(
+        getMonthKey((data as Transaction).occurred_at) === windowMonthKey
+          ? 'Transaction added.'
+          : 'Transaction added. Switch to the current month window to view it.'
+      );
       resetForm();
     } else {
       setStatus(error?.message ?? 'Could not add transaction.');
@@ -160,22 +228,31 @@ export function TransactionsClient({
     setStatus('Editing transaction.');
   };
 
-  const deleteTxn = async (id: string) => {
+  const deleteTxn = async (txn: Transaction) => {
     if (!supabase) return;
-    const { error } = await supabase.from('transactions').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+    const { error } = await supabase.from('transactions').update({ deleted_at: new Date().toISOString() }).eq('id', txn.id);
     if (!error) {
-      setTransactions(transactions.filter((t) => t.id !== id));
+      setWindowTransactions((current) => current.filter((item) => item.id !== txn.id));
+      setRecentlyDeleted(txn);
+      await refreshTransactionWindows();
       setStatus('Transaction deleted.');
     } else {
       setStatus(error.message);
     }
   };
 
-  const undoDelete = async (txn: Transaction) => {
-    if (!supabase) return;
-    const { data, error } = await supabase.from('transactions').update({ deleted_at: null }).eq('id', txn.id).select('*').single();
+  const undoDelete = async () => {
+    if (!supabase || !recentlyDeleted) return;
+    const { data, error } = await supabase
+      .from('transactions')
+      .update({ deleted_at: null })
+      .eq('id', recentlyDeleted.id)
+      .select(TRANSACTION_SELECT)
+      .single();
     if (!error && data) {
-      setTransactions([data, ...transactions]);
+      upsertInCurrentWindow(data as Transaction);
+      setRecentlyDeleted(null);
+      await refreshTransactionWindows();
       setStatus('Transaction restored.');
     } else {
       setStatus(error?.message ?? 'Could not restore transaction.');
@@ -195,11 +272,42 @@ export function TransactionsClient({
   return (
     <div className="space-y-4 fade-up">
       <section className="surface-card space-y-4 p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="kicker">Date window</div>
+            <div className="mt-1 font-semibold">{windowLabel}</div>
+            <div className="text-sm text-[--text-secondary]">Transactions load one month at a time for faster response, then stay cached as you move around.</div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setWindowMonthKey(shiftMonthKey(windowMonthKey, -1))} className="btn-secondary text-sm">← Previous</button>
+            <input className="field" type="month" value={windowMonthKey} onChange={(e) => setWindowMonthKey(e.target.value)} />
+            <button onClick={() => setWindowMonthKey(currentMonthKey)} className="btn-ghost text-sm">This month</button>
+            <button
+              onClick={() => setWindowMonthKey(shiftMonthKey(windowMonthKey, 1))}
+              className="btn-secondary text-sm"
+              disabled={windowMonthKey >= currentMonthKey}
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-4">
+          <Stat title="Window rows" value={String(transactions.length)} />
+          <Stat title="Window month" value={windowMonthKey} mono />
+          <Stat title="Load mode" value="Monthly cached" />
+          <Stat title="Status" value={isFetching ? 'Refreshing…' : 'Cached'} />
+        </div>
+
+        {loadError ? <div className="surface-soft px-3 py-2 text-sm text-[--danger]">{loadError instanceof Error ? loadError.message : 'Could not load this transaction window.'}</div> : null}
+      </section>
+
+      <section className="surface-card space-y-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="kicker">Search</div>
             <div className="mt-1 font-semibold">Filters & overview</div>
-            <div className="text-sm text-[--text-secondary]">Search note, account, category, amount, or transfer target.</div>
+            <div className="text-sm text-[--text-secondary]">Search note, account, category, amount, or transfer target inside the current month window.</div>
           </div>
           <button onClick={clearFilters} className="btn-secondary text-sm">Clear filters</button>
         </div>
@@ -241,6 +349,7 @@ export function TransactionsClient({
         <div>
           <div className="kicker">Manual entry</div>
           <div className="mt-1 font-semibold">Add or edit transaction</div>
+          <div className="text-sm text-[--text-secondary]">No separate Add page in the nav. Quick handles tiny spends; this section handles full manual entry.</div>
         </div>
         <div className="grid gap-3 md:grid-cols-5">
           <select className="field" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
@@ -258,7 +367,7 @@ export function TransactionsClient({
             </select>
           ) : (
             <select className="field" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-              {categoryOptions.length ? categories.filter((c) => c.kind === 'both' || c.kind === type).map((c) => <option key={c.id} value={c.id}>{c.name}</option>) : <option value="">No categories</option>}
+              {categoryOptions.length ? categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>) : <option value="">No categories</option>}
             </select>
           )}
           <input className="field text-right font-mono" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
@@ -272,6 +381,15 @@ export function TransactionsClient({
         {status ? <div className="surface-soft px-3 py-2 text-sm text-[--text-secondary]">{status}</div> : null}
         {editingId ? <button onClick={resetForm} className="btn-ghost w-fit text-sm">Cancel edit</button> : null}
       </section>
+
+      {recentlyDeleted ? (
+        <div className="surface-card flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+          <div className="text-sm text-[--text-secondary]">
+            Deleted <span className="font-medium text-[--text-primary]">{recentlyDeleted.note || formatMoney(Number(recentlyDeleted.amount))}</span>. Undo is available until the next delete.
+          </div>
+          <button onClick={undoDelete} className="btn-ghost text-sm">Undo delete</button>
+        </div>
+      ) : null}
 
       <div className="space-y-2">
         {filteredTransactions.length ? filteredTransactions.map((t) => (
@@ -288,8 +406,7 @@ export function TransactionsClient({
               </div>
               <div className="flex flex-wrap gap-2">
                 <button onClick={() => startEdit(t)} className="btn-secondary text-sm">Edit</button>
-                <button onClick={() => deleteTxn(t.id)} className="btn-danger text-sm">Delete</button>
-                <button onClick={() => undoDelete(t)} className="btn-ghost text-sm">Undo</button>
+                <button onClick={() => deleteTxn(t)} className="btn-danger text-sm">Delete</button>
               </div>
             </div>
           </div>

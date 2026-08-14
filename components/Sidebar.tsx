@@ -5,12 +5,20 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 const links = [
-  ['Dashboard', '/dashboard'],
+  ['Dashboard', '/'],
   ['Transactions', '/transactions'],
   ['Analysis', '/analysis'],
   ['Manage', '/manage'],
   ['Settings', '/settings'],
 ];
+
+function isActivePath(pathname: string, href: string) {
+  if (href === '/') {
+    return pathname === '/' || pathname === '/dashboard';
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -42,11 +50,12 @@ export function Sidebar() {
       </div>
       <nav className="space-y-2">
         {links.map(([label, href]) => {
-          const active = pathname === href || pathname.startsWith(`${href}/`);
+          const active = isActivePath(pathname, href);
           return (
             <Link
               key={label}
               href={href}
+              aria-current={active ? 'page' : undefined}
               className={`nav-link block min-h-11 rounded-[--radius] px-3 py-2 text-sm ${
                 active ? 'nav-link-active text-[--text-primary]' : 'text-[--text-secondary]'
               } ${collapsed ? 'text-center' : ''}`}

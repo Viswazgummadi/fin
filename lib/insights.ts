@@ -30,6 +30,28 @@ export function getCurrentMonthKey(reference = new Date()) {
   return getMonthKey(reference);
 }
 
+export function shiftMonthKey(monthKey: string, delta: number) {
+  const [year, month] = monthKey.split('-').map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1 + delta, 1));
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+export function formatMonthLabel(monthKey: string) {
+  const [year, month] = monthKey.split('-').map(Number);
+  return new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(new Date(Date.UTC(year, month - 1, 1)));
+}
+
+export function getMonthRangeForQuery(monthKey: string) {
+  const [year, month] = monthKey.split('-').map(Number);
+  const start = new Date(Date.UTC(year, month - 1, 1, 0, -IST_OFFSET_MINUTES, 0, 0));
+  const end = new Date(Date.UTC(year, month, 1, 0, -IST_OFFSET_MINUTES, 0, 0));
+
+  return {
+    startIso: start.toISOString(),
+    endIso: end.toISOString(),
+  };
+}
+
 export function isInMonth(date: Date | string, monthKey: string) {
   return getMonthKey(date) === monthKey;
 }

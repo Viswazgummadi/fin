@@ -1,3 +1,36 @@
+### Session 29 — 2025-08-15 (Transactions windowing + add-flow cleanup)
+Phase worked on: Item 2 — Date-window transactions, plus structure cleanup around Add
+Completed:
+- Confirmed there is no separate Add item left in the active nav structure; Quick remains the global fast path and full manual entry stays inside `/transactions`
+- Removed the unused `components/MainAddClient.tsx` so the codebase no longer carries an abandoned separate add flow
+- Changed `/transactions` initial load to fetch only the current month window on the server instead of a broad transaction list
+- Added month-window navigation on the transactions page with previous / month picker / this month / next controls
+- Moved transaction-window switching to React Query cached client fetching so revisiting months is faster
+- Reworked transaction mutations to cooperate with the active cached window and added a real delete-then-undo surface
+- Revalidated with successful `npm run lint` and `npm run build`
+Broken / TODO:
+- Manual desktop/mobile QA for item 1 still needs to be completed in-browser against the latest nav + transaction flow
+- Other heavy authenticated pages still rely on server fetching and are the next candidates for broader React Query caching
+- Quick-spend config is still local-only and offline mutation queue is still not implemented
+Next exact step:
+- Manually QA nav + transactions on desktop/mobile together: quick spend, no separate Add entry, `/add` redirect, month-window switching, delete undo, and loading feel
+- Then start item 3 by moving the next-heaviest authenticated pages to cached client fetching after the initial shell
+
+### Session 28 — 2025-08-15 (Execution tracking + nav QA prep)
+Phase worked on: Item 1 — Manual QA nav flow on desktop/mobile
+Completed:
+- Added a current execution tracker to `plan.md` for the 4 requested work items, with status, acceptance notes, and a nav QA checklist
+- Canonicalized dashboard shell navigation to `/` so nav/header behavior is consistent with the root dashboard route
+- Fixed active-state detection so dashboard highlights correctly on both `/` and `/dashboard`
+- Added `aria-current="page"` on desktop/mobile nav links to make active-route QA and accessibility clearer
+Broken / TODO:
+- Manual browser/device QA is still required for the nav checklist items; this session only prepared and tightened the flow
+- Transactions still render a large initial server list; item 2 is still the main code path for response-time improvement
+- Quick-spend config is still local-only and offline mutation queue is still not implemented
+Next exact step:
+- Run the manual nav QA pass from `plan.md` on desktop/mobile breakpoints and note any UX regressions
+- If the flow is clean, start item 2 by converting transactions to a bounded date window instead of loading a large list up front
+
 ### Session 27 — 2025-08-15 (Nav cleanup + perceived performance pass)
 Phase worked on: Navigation simplification, smoother transitions, and route-load reduction
 Completed:

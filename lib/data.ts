@@ -45,16 +45,26 @@ type TransactionOptions = {
   limit?: number;
   includeDeleted?: boolean;
   select?: string;
+  occurredFrom?: string;
+  occurredTo?: string;
 };
 
 export async function getTransactions(options: TransactionOptions = {}): Promise<Transaction[]> {
   const supabase = createSupabaseServerClient();
   if (!supabase) return [];
-  const query = supabase
+  let query = supabase
     .from('transactions')
     .select(options.select ?? '*')
     .order('occurred_at', { ascending: false })
     .limit(options.limit ?? 500);
+
+  if (options.occurredFrom) {
+    query = query.gte('occurred_at', options.occurredFrom);
+  }
+
+  if (options.occurredTo) {
+    query = query.lt('occurred_at', options.occurredTo);
+  }
 
   const { data, error } = options.includeDeleted ? await query : await query.is('deleted_at', null);
   if (error) {
