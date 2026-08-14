@@ -2,8 +2,9 @@ import Link from 'next/link';
 import { AppShell } from '../../components/AppShell';
 
 const shortcuts = [
-  ['Analysis', '/analysis', 'Deep insights into your financial flow, trends, and patterns.'],
-  ['Manage Data', '/manage', 'Accounts, categories, people, and other organizational settings.'],
+  ['Full add', '/add', 'Open the full transaction form for income, transfers, and detailed entries.'],
+  ['Analysis', '/analysis', 'Deep insights into your spending patterns and calendar.'],
+  ['Manage Data', '/manage', 'Accounts, categories, quick spend buttons, and structure.'],
   ['Settings', '/settings', 'Backup, app theme, and system shortcuts.'],
 ];
 

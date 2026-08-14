@@ -4,19 +4,18 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 import type { Account } from '../lib/types';
-
-const templates = [
-  { label: 'Metro', note: 'Metro - office one way', amount: 40 },
-  { label: 'Tea', note: 'Tea', amount: 20 },
-  { label: 'Lunch', note: 'Lunch', amount: 150 },
-  { label: 'Cab', note: 'Cab', amount: 300 },
-];
+import {
+  DEFAULT_QUICK_SPEND_TEMPLATES,
+  QUICK_SPEND_EVENT,
+  readQuickSpendConfig,
+  type QuickSpendTemplate,
+} from '../lib/quick-spend';
 
 export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
-  const [type, setType] = useState<'expense' | 'income'>('expense');
   const [accountId, setAccountId] = useState('');
+  const [templates, setTemplates] = useState<QuickSpendTemplate[]>(DEFAULT_QUICK_SPEND_TEMPLATES);
   const supabase = createSupabaseBrowserClient();
   const queryClient = useQueryClient();
 
@@ -31,22 +30,34 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
   });
 
   useEffect(() => {
-    if (accounts && accounts.length > 0 && !accountId) {
-      setAccountId(accounts[0].id);
-    }
-  }, [accounts, accountId]);
+    if (!accounts?.length) return;
+
+    const syncFromConfig = () => {
+      const config = readQuickSpendConfig();
+      setTemplates(config.templates.length ? config.templates : DEFAULT_QUICK_SPEND_TEMPLATES);
+      const fallbackAccountId = accounts[0]?.id ?? '';
+      const configured = config.defaultAccountId && accounts.some((account) => account.id === config.defaultAccountId)
+        ? config.defaultAccountId
+        : fallbackAccountId;
+      setAccountId(configured);
+    };
+
+    syncFromConfig();
+    window.addEventListener(QUICK_SPEND_EVENT, syncFromConfig);
+    return () => window.removeEventListener(QUICK_SPEND_EVENT, syncFromConfig);
+  }, [accounts]);
 
   const mutation = useMutation({
-    mutationFn: async (data: { amount: number; note: string; type: 'expense' | 'income'; account_id: string }) => {
+    mutationFn: async (data: { amount: number; note: string; account_id: string }) => {
         if (!supabase) throw new Error('Supabase not configured');
         const { data: result, error } = await supabase.from('transactions').insert([
             {
                 amount: data.amount,
                 note: data.note.trim() || null,
-                type: data.type,
+                type: 'expense',
                 account_id: data.account_id,
                 occurred_at: new Date().toISOString(),
-                is_planned: true,
+                is_planned: false,
             }
         ]);
         if (error) throw error;
@@ -63,8 +74,8 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!accountId) return alert('Select an account');
-    mutation.mutate({ amount: Number(amount), note, type, account_id: accountId });
+    if (!accountId) return alert('Set a default quick-spend account from Manage first.');
+    mutation.mutate({ amount: Number(amount), note, account_id: accountId });
   };
 
   return (
@@ -74,12 +85,11 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {templates.map((template) => (
             <button
-              key={template.label}
+              key={template.id}
               type="button"
               onClick={() => {
                 setNote(template.note);
                 setAmount(String(template.amount));
-                setType('expense');
               }}
               className="rounded-[--radius] border border-[--border] bg-[--bg-tertiary] px-3 py-2 text-left hover:border-[--accent]"
             >
@@ -110,12 +120,13 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
         />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1.2fr]">
-        <button type="button" onClick={() => setType('expense')} className={`rounded-[--radius] px-4 py-3 ${type === 'expense' ? 'bg-[--danger] text-white' : 'border border-[--border] bg-[--bg-tertiary]'}`}>Expense</button>
-        <button type="button" onClick={() => setType('income')} className={`rounded-[--radius] px-4 py-3 ${type === 'income' ? 'bg-[--accent] text-[--bg-primary]' : 'border border-[--border] bg-[--bg-tertiary]'}`}>Income</button>
-        <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className="w-full rounded-[--radius] border border-[--border] bg-[--bg-tertiary] px-3 py-3" required>
-          {accounts?.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-        </select>
+      <div className="rounded-[--radius] border border-[--border] bg-[--bg-primary]/40 px-3 py-3 text-sm text-[--text-secondary]">
+        Quick add saves a small <span className="font-medium text-[--text-primary]">expense</span>{' '}
+        {accountId && accounts?.length ? (
+          <>into <span className="font-medium text-[--text-primary]">{accounts.find((account) => account.id === accountId)?.name ?? 'your default account'}</span>.</>
+        ) : (
+          <>after you set a default account in <span className="font-medium text-[--text-primary]">Manage</span>.</>
+        )}
       </div>
 
       {mutation.error ? <div className="text-sm text-[--danger]">{mutation.error instanceof Error ? mutation.error.message : 'Could not add transaction.'}</div> : null}

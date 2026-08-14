@@ -44,6 +44,7 @@ export async function getTags(): Promise<Tag[]> {
 type TransactionOptions = {
   limit?: number;
   includeDeleted?: boolean;
+  select?: string;
 };
 
 export async function getTransactions(options: TransactionOptions = {}): Promise<Transaction[]> {
@@ -51,7 +52,7 @@ export async function getTransactions(options: TransactionOptions = {}): Promise
   if (!supabase) return [];
   const query = supabase
     .from('transactions')
-    .select('*')
+    .select(options.select ?? '*')
     .order('occurred_at', { ascending: false })
     .limit(options.limit ?? 500);
 
@@ -60,7 +61,7 @@ export async function getTransactions(options: TransactionOptions = {}): Promise
     console.error('Error fetching transactions:', error);
     return [];
   }
-  return data ?? [];
+  return ((data as unknown) as Transaction[] | null) ?? [];
 }
 
 export async function getPeople(): Promise<Person[]> {

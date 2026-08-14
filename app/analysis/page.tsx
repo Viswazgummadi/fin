@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { AppShell } from '../../components/AppShell';
-import { getAccounts, getCategories, getTransactions } from '../../lib/data';
+import { getCategories, getTransactions } from '../../lib/data';
 import {
   buildMonthGrid,
   formatMoney,
@@ -14,7 +14,13 @@ import {
 export const dynamic = 'force-dynamic';
 
 export default async function AnalysisPage() {
-  const [accounts, categories, transactions] = await Promise.all([getAccounts(), getCategories(), getTransactions({ limit: 1000 })]);
+  const [categories, transactions] = await Promise.all([
+    getCategories(),
+    getTransactions({
+      limit: 500,
+      select: 'id,type,amount,category_id,note,occurred_at,is_planned,deleted_at',
+    }),
+  ]);
   const categoryRows = summarizeCategories(transactions, categories);
   const weekdayRows = summarizeWeekdays(transactions);
   const topNotes = summarizeTopNotes(transactions);
@@ -36,14 +42,14 @@ export default async function AnalysisPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-semibold">Analysis</h1>
-          <p className="mt-2 max-w-3xl text-sm text-text-secondary">Clear, data-first analysis without fluff. Dense enough for desktop, readable on a Samsung S25 Ultra.</p>
+          <p className="mt-2 max-w-3xl text-sm text-text-secondary">Fast, compact analysis focused on what you actually need day to day.</p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Metric title="Accounts" value={String(accounts.length)} />
-          <Metric title="Categories" value={String(categories.length)} />
+          <Metric title="Tracked categories" value={String(categories.length)} />
           <Metric title="Current month spend" value={formatMoney(currentMonthExpenses)} />
           <Metric title="Expense days" value={String(dailySpend.size)} />
+          <Metric title="Repeated notes" value={String(topNotes.length)} />
         </div>
 
         <div className="grid gap-4 xl:grid-cols-3">
@@ -102,35 +108,23 @@ export default async function AnalysisPage() {
           </Panel>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-2">
-          <Panel title="Calendar intensity preview">
-            <div className="grid grid-cols-7 gap-2 text-center text-xs text-text-secondary">
-              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d) => <div key={d}>{d}</div>)}
-              {monthGrid.days.map((day) => (
-                <a
-                  key={day.key}
-                  href={`/whathappened?date=${day.key}`}
-                  className={`min-h-11 rounded-lg border p-2 transition ${day.inMonth ? 'border-border' : 'border-border/40 text-text-muted'} ${
-                    day.spend > 0 ? 'bg-accent/10' : 'bg-bg-secondary'
-                  }`}
-                >
-                  <div className="font-medium text-text-primary">{day.label}</div>
-                  <div className="mt-1 font-mono text-[11px]">{day.spend ? formatMoney(day.spend) : '—'}</div>
-                </a>
-              ))}
-            </div>
-          </Panel>
-          <Panel title="Spending story">
-            <div className="space-y-3 text-sm text-text-secondary">
-              <p>This month you spent {formatMoney(currentMonthExpenses)} across {categoryRows.length} tracked categories.</p>
-              <p>Tap the calendar to inspect any day in the journal view. Tap transactions to go back to the raw list.</p>
-              <div className="rounded-xl border border-border bg-bg-primary/50 p-3">
-                <div className="font-medium text-text-primary">Desktop + phone design</div>
-                <div className="mt-1">Charts are kept simple, dense, and touch-friendly so they read well on a Samsung S25 Ultra.</div>
-              </div>
-            </div>
-          </Panel>
-        </div>
+        <Panel title={monthGrid.monthLabel}>
+          <div className="grid grid-cols-7 gap-2 text-center text-xs text-text-secondary">
+            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d) => <div key={d}>{d}</div>)}
+            {monthGrid.days.map((day) => (
+              <a
+                key={day.key}
+                href={`/whathappened?date=${day.key}`}
+                className={`min-h-14 rounded-lg border p-2 transition ${day.inMonth ? 'border-border' : 'border-border/40 text-text-muted'} ${
+                  day.spend > 0 ? 'bg-accent/10' : 'bg-bg-secondary'
+                }`}
+              >
+                <div className="font-medium text-text-primary">{day.label}</div>
+                <div className="mt-1 font-mono text-[11px]">{day.spend ? formatMoney(day.spend) : '—'}</div>
+              </a>
+            ))}
+          </div>
+        </Panel>
       </div>
     </AppShell>
   );
@@ -174,9 +168,10 @@ function List({ rows }: { rows: { left: string; right: string; sub?: string }[] 
 }
 
 function Donut({ center, subtitle, slices }: { center: string; subtitle: string; slices: { label: string; value: number; color: string }[] }) {
-  const total = slices.reduce((sum, slice) => sum + slice.value, 0) || 1;
+  const activeSlices = slices.filter((slice) => slice.value > 0);
+  const total = activeSlices.reduce((sum, slice) => sum + slice.value, 0) || 1;
   let running = 0;
-  const stops = slices
+  const stops = activeSlices
     .map((slice) => {
       const start = (running / total) * 100;
       running += slice.value;
@@ -187,14 +182,14 @@ function Donut({ center, subtitle, slices }: { center: string; subtitle: string;
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="relative h-40 w-40 rounded-full" style={{ background: `conic-gradient(${stops})` }}>
+      <div className="relative h-40 w-40 rounded-full border border-border" style={{ background: activeSlices.length ? `conic-gradient(${stops})` : 'var(--bg-primary)' }}>
         <div className="absolute inset-[18%] flex flex-col items-center justify-center rounded-full border border-border bg-bg-secondary text-center">
           <div className="font-mono text-lg">{center}</div>
           <div className="text-[11px] text-text-secondary">{subtitle}</div>
         </div>
       </div>
       <div className="flex flex-wrap justify-center gap-2 text-xs text-text-secondary">
-        {slices.map((slice) => (
+        {(activeSlices.length ? activeSlices : [{ label: 'No data', value: 0, color: '#6b6b73' }]).map((slice) => (
           <span key={slice.label} className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-1">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: slice.color }} />
             {slice.label}

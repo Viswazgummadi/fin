@@ -16,7 +16,7 @@ export function HeaderActions() {
           onClick={() => setIsQuickAddOpen(true)}
           className="rounded-[--radius] bg-[--accent] px-3 py-1.5 text-sm font-semibold text-[--bg-primary] hover:opacity-90"
         >
-          + Add
+          + Quick
         </button>
         <AuthButtons />
       </div>

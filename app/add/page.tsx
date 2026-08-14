@@ -1,13 +1,15 @@
 import { AppShell } from '../../components/AppShell';
-import { QuickAdd } from '../../components/QuickAdd';
+import { MainAddClient } from '../../components/MainAddClient';
+import { getAccounts, getCategories } from '../../lib/data';
 
-export default function AddPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function AddPage() {
+  const [accounts, categories] = await Promise.all([getAccounts(), getCategories()]);
+
   return (
     <AppShell>
-      <div className="mx-auto max-w-lg">
-        <h1 className="mb-6 text-3xl font-semibold">Quick Add</h1>
-        <QuickAdd />
-      </div>
+      <MainAddClient accounts={accounts} categories={categories} />
     </AppShell>
   );
 }
