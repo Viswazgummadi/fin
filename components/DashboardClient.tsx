@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { DashboardStats } from './DashboardStats';
-import { QuickAddModal } from './QuickAddModal';
 import { formatMoney } from '../lib/insights';
 import type { Account, Transaction } from '../lib/types';
 
@@ -18,21 +16,11 @@ export function DashboardClient({
   accounts: Account[];
   transactions: Transaction[];
 }) {
-  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="mt-1 text-sm text-[--text-secondary]">See balances, recent activity, and patterns at a glance.</p>
-        </div>
-        <button
-          onClick={() => setIsQuickAddOpen(true)}
-          className="hidden rounded-[--radius] bg-[--accent] px-4 py-2 font-semibold text-[--bg-primary] hover:opacity-90 sm:block"
-        >
-          + Add
-        </button>
+    <div className="space-y-6 fade-up">
+      <div className="page-header">
+        <h1 className="page-title">Dashboard</h1>
+        <p className="page-copy">See balances, recent activity, and patterns at a glance. Quick spend already lives in the header, so the dashboard stays clean.</p>
       </div>
 
       <DashboardStats accounts={accounts} transactions={transactions} />
@@ -67,7 +55,6 @@ export function DashboardClient({
         </Section>
       </div>
 
-      <QuickAddModal isOpen={isQuickAddOpen} onClose={() => setIsQuickAddOpen(false)} />
     </div>
   );
 }

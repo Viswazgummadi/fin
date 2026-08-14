@@ -1,8 +1,6 @@
 import { AppShell } from '../../components/AppShell';
 import { BackupRestoreClient } from '../../components/BackupRestoreClient';
 
-export const dynamic = 'force-dynamic';
-
 export default async function SettingsPage() {
   return (
     <AppShell>
@@ -13,7 +11,7 @@ export default async function SettingsPage() {
         </div>
         <BackupRestoreClient />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <Card title="Shortcuts" text="Keep your flow fast: quick spend in the header, full add in its own screen, filters in transactions." />
+          <Card title="Shortcuts" text="Keep your flow fast: quick spend in the header, full entry inside transactions, and focused filters when you need detail." />
           <Card title="Theme" text="Dark-first, low-glare, mono-number design tuned for long usage and mobile comfort." />
           <Card title="AI summaries" text="Optional later. Kept intentionally absent for now so the app stays fast and focused." />
         </div>

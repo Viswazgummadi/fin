@@ -17,8 +17,8 @@ export default async function AnalysisPage() {
   const [categories, transactions] = await Promise.all([
     getCategories(),
     getTransactions({
-      limit: 500,
-      select: 'id,type,amount,category_id,note,occurred_at,is_planned,deleted_at',
+      limit: 300,
+      select: 'type,amount,category_id,note,occurred_at,is_planned,deleted_at',
     }),
   ]);
   const categoryRows = summarizeCategories(transactions, categories);
@@ -42,7 +42,7 @@ export default async function AnalysisPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-semibold">Analysis</h1>
-          <p className="mt-2 max-w-3xl text-sm text-text-secondary">Fast, compact analysis focused on what you actually need day to day.</p>
+          <p className="mt-2 max-w-3xl text-sm text-text-secondary">Fast, compact analysis focused on what you actually need day to day, using a lighter recent-history snapshot for quicker loads.</p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

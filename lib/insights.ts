@@ -2,13 +2,14 @@ import type { Account, Category, Transaction } from './types';
 import { calculateMonthlyTotals, calculateTotalBalance } from './finance';
 
 const IST_OFFSET_MINUTES = 330;
+const moneyFormatter = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 2,
+});
 
 export function formatMoney(amount: number) {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 2,
-  }).format(amount || 0);
+  return moneyFormatter.format(amount || 0);
 }
 
 export function shiftToIST(date: Date | string) {
@@ -34,10 +35,7 @@ export function isInMonth(date: Date | string, monthKey: string) {
 }
 
 export function getRecentTransactions(transactions: Transaction[], limit = 10) {
-  return [...transactions]
-    .filter((t) => !t.deleted_at)
-    .sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime())
-    .slice(0, limit);
+  return transactions.filter((t) => !t.deleted_at).slice(0, limit);
 }
 
 export function getTransactionsForDate(transactions: Transaction[], dateKey: string) {
@@ -50,11 +48,12 @@ export function getTransactionsForMonth(transactions: Transaction[], reference =
 }
 
 export function summarizeCategories(transactions: Transaction[], categories: Category[]) {
+  const categoryNameMap = new Map(categories.map((category) => [category.id, category.name]));
   const totals = new Map<string, { category: string; amount: number; count: number }>();
   for (const txn of transactions) {
     if (txn.type !== 'expense' || txn.deleted_at) continue;
     const key = txn.category_id ?? 'uncategorized';
-    const existing = totals.get(key) ?? { category: categories.find((c) => c.id === key)?.name ?? 'Uncategorized', amount: 0, count: 0 };
+    const existing = totals.get(key) ?? { category: categoryNameMap.get(key) ?? 'Uncategorized', amount: 0, count: 0 };
     existing.amount += Number(txn.amount || 0);
     existing.count += 1;
     totals.set(key, existing);

@@ -6,7 +6,13 @@ import { getAccounts, getCategories, getTransactions } from '../../lib/data';
 export const dynamic = 'force-dynamic';
 
 export default async function TransactionsPage() {
-  const [transactions, accounts, categories] = await Promise.all([getTransactions(), getAccounts(), getCategories()]);
+  const [transactions, accounts, categories] = await Promise.all([
+    getTransactions({
+      select: 'id,account_id,transfer_account_id,type,amount,category_id,note,occurred_at,is_planned,deleted_at',
+    }),
+    getAccounts(),
+    getCategories(),
+  ]);
   return (
     <AppShell>
       <div className="space-y-6 fade-up">

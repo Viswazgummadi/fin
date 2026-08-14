@@ -1,3 +1,22 @@
+### Session 27 — 2025-08-15 (Nav cleanup + perceived performance pass)
+Phase worked on: Navigation simplification, smoother transitions, and route-load reduction
+Completed:
+- Removed `Add` from desktop/mobile navigation and redirected `/add` to `/transactions`
+- Removed the duplicate dashboard add button since header quick spend already covers fast entry
+- Reworked sidebar/mobile nav styling toward a smoother glassy/liquid feel
+- Added shared loading skeletons for key routes so navigation feels less abrupt while data loads
+- Reduced dashboard/analysis payloads, narrowed transaction selects, and tightened a few hot-path helpers in `lib/insights`
+- Excluded PWA/static asset requests from auth middleware matching to avoid unnecessary middleware work
+- Revalidated with successful `npm run lint` and `npm run build`
+Broken / TODO:
+- Biggest remaining latency source is still authenticated server rendering: middleware auth check + Supabase data fetch on each protected route
+- Transactions still load a large server-side list up front; pagination or date-windowing is still not implemented
+- Quick-spend config is still local-only and not synced through Supabase yet
+- Offline mutation queue / IndexedDB persistence is still not implemented
+Next exact step:
+- Manual QA the new nav flow on desktop/mobile: sidebar collapse, mobile bottom nav, `/add` redirect, dashboard/header quick spend, and route loading feel
+- If page latency is still noticeable after QA, next code step should be paginating transactions and moving more data views to client-side cached fetching with React Query
+
 ### Session 26 — 2025-08-15 (Repo health check + tooling)
 Phase worked on: Validation, tooling, and dependency hygiene
 Completed:
