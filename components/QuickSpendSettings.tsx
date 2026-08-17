@@ -53,7 +53,7 @@ export function QuickSpendSettings({ accounts }: { accounts: Account[] }) {
     [config.templates]
   );
 
-  const updateTemplate = (id: string, field: 'label' | 'note' | 'amount', value: string) => {
+  const updateTemplate = (id: string, field: 'label' | 'note' | 'amount' | 'favorite', value: string | boolean) => {
     setConfig((current) => ({
       ...current,
       templates: current.templates.map((template) =>
@@ -187,7 +187,19 @@ export function QuickSpendSettings({ accounts }: { accounts: Account[] }) {
                 inputMode="decimal"
                 className="rounded-[--radius] border border-[--border] bg-[--bg-tertiary] px-3 py-2 text-right font-mono"
               />
-              <button onClick={() => removeTemplate(template.id)} className="rounded-[--radius] border border-[--border] px-3 py-2 text-sm text-[--text-secondary]">Remove</button>
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={() => updateTemplate(template.id, 'favorite', !template.favorite)}
+                  className={`rounded-[--radius] px-3 py-2 text-sm ${
+                    template.favorite 
+                      ? 'bg-yellow-500/10 text-yellow-500' 
+                      : 'border border-[--border] text-[--text-secondary]'
+                  }`}
+                >
+                  {template.favorite ? '★ Favorite' : '☆ Favorite'}
+                </button>
+                <button onClick={() => removeTemplate(template.id)} className="rounded-[--radius] border border-[--border] px-3 py-2 text-sm text-[--text-secondary]">Remove</button>
+              </div>
             </div>
           ))}
 

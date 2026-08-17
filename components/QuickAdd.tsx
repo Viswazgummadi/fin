@@ -11,9 +11,12 @@ import {
   readQuickSpendConfig,
   saveQuickSpendConfig,
   type QuickSpendTemplate,
+  addToQuickSpendHistory,
+  QuickSpendHistoryItem,
 } from '../lib/quick-spend';
 import { queryKeys } from '../lib/query-keys';
 import { enqueueOfflineOutboxItem, fetchRemoteQuickSpendConfig } from '../lib/offline-sync';
+import { QuickSpendHistory } from './QuickSpendHistory';
 
 export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
   const [amount, setAmount] = useState('');
@@ -115,7 +118,22 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!accountId) return alert('Set a default quick-spend account from Manage first.');
+    
+    // Add to history before submitting
+    if (amount && note) {
+      addToQuickSpendHistory({
+        templateId: 'custom',
+        amount: Number(amount),
+        note
+      });
+    }
+    
     mutation.mutate({ amount: Number(amount), note, account_id: accountId });
+  };
+
+  const handleUseHistory = (item: QuickSpendHistoryItem) => {
+    setNote(item.note);
+    setAmount(String(item.amount));
   };
 
   return (
@@ -123,7 +141,31 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
       <div>
         <label className="mb-2 block text-xs uppercase tracking-wide text-[--text-muted]">Quick templates</label>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {templates.map((template) => (
+          {templates.filter(t => t.favorite).map((template) => (
+            <button
+              key={template.id}
+              type="button"
+              onClick={() => {
+                setNote(template.note);
+                setAmount(String(template.amount));
+              }}
+              className="rounded-[--radius] border border-[--border] bg-[--bg-tertiary] px-3 py-2 text-left hover:border-[--accent]"
+            >
+              <div className="text-sm font-medium">{template.label}</div>
+              <div className="text-xs text-[--text-muted]">{template.note}</div>
+              <div className="mt-1 font-mono text-sm">₹{template.amount}</div>
+            </button>
+          ))}
+        </div>
+        {templates.filter(t => t.favorite).length > 0 && (
+          <div className="mt-3 text-xs text-[--text-muted]">Favorites shown above</div>
+        )}
+      </div>
+
+      <div>
+        <label className="mb-2 block text-xs uppercase tracking-wide text-[--text-muted]">All templates</label>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {templates.filter(t => !t.favorite).map((template) => (
             <button
               key={template.id}
               type="button"
@@ -140,6 +182,8 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
           ))}
         </div>
       </div>
+
+      <QuickSpendHistory onUseHistory={handleUseHistory} />
 
       <div className="grid gap-3 sm:grid-cols-[1.6fr_0.9fr]">
         <input

@@ -15,6 +15,7 @@ import {
 } from '../lib/insights';
 import { queryKeys } from '../lib/query-keys';
 import { enqueueOfflineOutboxItem } from '../lib/offline-sync';
+import { TransactionSuggestions } from './TransactionSuggestions';
 
 type PlannedFilter = 'all' | 'planned' | 'unplanned';
 
@@ -432,6 +433,8 @@ export function TransactionsClient({
 
   return (
     <div className="space-y-4 fade-up">
+      <TransactionSuggestions transactions={transactions} categories={categories} />
+      
       <section className="surface-card space-y-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
