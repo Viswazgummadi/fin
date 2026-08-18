@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+const SIDEBAR_COLLAPSED_KEY = 'fin.sidebar.collapsed';
 
 const links = [
   ['Dashboard', '/'],
@@ -22,12 +24,28 @@ function isActivePath(pathname: string, href: string) {
 
 export function Sidebar({ initialCollapsed = false }: { initialCollapsed?: boolean }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(initialCollapsed);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return initialCollapsed;
+    const stored = window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+    if (stored === 'true' || stored === 'false') return stored === 'true';
+    return initialCollapsed;
+  });
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+    if (stored === 'true' || stored === 'false') {
+      setCollapsed(stored === 'true');
+      return;
+    }
+
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(initialCollapsed));
+    document.cookie = `fin.sidebar.collapsed=${String(initialCollapsed)}; path=/; max-age=31536000; samesite=lax`;
+  }, [initialCollapsed]);
 
   const toggle = () => {
     setCollapsed((current) => {
       const next = !current;
-      window.localStorage.setItem('fin.sidebar.collapsed', String(next));
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
       document.cookie = `fin.sidebar.collapsed=${String(next)}; path=/; max-age=31536000; samesite=lax`;
       return next;
     });
