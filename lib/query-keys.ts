@@ -6,4 +6,5 @@ export const queryKeys = {
   dashboardTransactions: ['dashboard-transactions'] as const,
   analysisTransactions: ['analysis-transactions'] as const,
   reviewTransactions: ['review-transactions'] as const,
+  limits: ['limits'] as const,
 };

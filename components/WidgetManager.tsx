@@ -1,34 +1,47 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { DashboardWidget, getUserDashboardWidgets, saveUserDashboardWidgets } from '../lib/dashboard';
+import { useEffect, useMemo, useState } from 'react';
+import { DashboardWidget, getUserDashboardWidgets, normalizeDashboardWidgets, saveUserDashboardWidgets } from '../lib/dashboard';
 
 export function WidgetManager({ 
   children,
   onWidgetsChange 
 }: { 
-  children: React.ReactNode;
+  children: React.ReactNode | ((visibleWidgets: DashboardWidget[], widgets: DashboardWidget[], setWidgets: (widgets: DashboardWidget[]) => void) => React.ReactNode);
   onWidgetsChange?: (widgets: DashboardWidget[]) => void;
 }) {
-  const [widgets, setWidgets] = useState<DashboardWidget[]>([]);
+  const [widgets, setWidgets] = useState<DashboardWidget[]>(() => normalizeDashboardWidgets(getUserDashboardWidgets()));
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    const savedWidgets = getUserDashboardWidgets();
-    setWidgets(savedWidgets);
+    setWidgets(normalizeDashboardWidgets(getUserDashboardWidgets()));
   }, []);
 
+  useEffect(() => {
+    saveUserDashboardWidgets(widgets);
+    onWidgetsChange?.(widgets);
+  }, [widgets, onWidgetsChange]);
+
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== 'fin.dashboard-widgets.v1') return;
+      setWidgets(normalizeDashboardWidgets(getUserDashboardWidgets()));
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  const visibleWidgets = useMemo(() => widgets.filter((widget) => widget.visible), [widgets]);
+
   const toggleWidget = (widgetId: string) => {
-    const updatedWidgets = widgets.map(widget => 
-      widget.id === widgetId ? { ...widget, visible: !widget.visible } : widget
+    setWidgets((current) =>
+      current.map((widget) => (widget.id === widgetId ? { ...widget, visible: !widget.visible } : widget))
     );
-    setWidgets(updatedWidgets);
-    saveUserDashboardWidgets(updatedWidgets);
-    onWidgetsChange?.(updatedWidgets);
   };
 
   const moveWidget = (widgetId: string, direction: 'up' | 'down') => {
-    const index = widgets.findIndex(w => w.id === widgetId);
+    const index = widgets.findIndex((w) => w.id === widgetId);
     if (index === -1) return;
 
     const newWidgets = [...widgets];
@@ -38,15 +51,20 @@ export function WidgetManager({
       [newWidgets[index], newWidgets[index + 1]] = [newWidgets[index + 1], newWidgets[index]];
     }
 
-    // Re-sort by position
-    newWidgets.sort((a, b) => a.position - b.position);
-    setWidgets(newWidgets);
-    saveUserDashboardWidgets(newWidgets);
-    onWidgetsChange?.(newWidgets);
+    setWidgets(
+      newWidgets.map((widget, position) => ({
+        ...widget,
+        position,
+      }))
+    );
   };
 
   const toggleEditMode = () => {
     setIsEditing(!isEditing);
+  };
+
+  const resetWidgets = () => {
+    setWidgets(normalizeDashboardWidgets(null));
   };
 
   return (
@@ -63,7 +81,13 @@ export function WidgetManager({
       
       {isEditing && (
         <div className="border border-[--border] rounded-lg p-4">
-          <h3 className="font-medium mb-3">Widget Management</h3>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="font-medium">Widget Management</h3>
+            <button onClick={resetWidgets} className="text-sm text-[--text-secondary]">
+              Reset
+            </button>
+          </div>
+          <p className="mb-3 text-sm text-[--text-secondary]">Reorder and hide dashboard sections. Changes save instantly.</p>
           <div className="space-y-2">
             {widgets.map((widget, index) => (
               <div key={widget.id} className="flex items-center justify-between p-2 border-b border-[--border]">
@@ -100,7 +124,7 @@ export function WidgetManager({
         </div>
       )}
       
-      {children}
+      {typeof children === 'function' ? children(visibleWidgets, widgets, setWidgets) : children}
     </div>
   );
 }

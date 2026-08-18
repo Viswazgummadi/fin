@@ -23,6 +23,7 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
   const [note, setNote] = useState('');
   const [accountId, setAccountId] = useState('');
   const [templates, setTemplates] = useState<QuickSpendTemplate[]>(DEFAULT_QUICK_SPEND_TEMPLATES);
+  const [status, setStatus] = useState('');
   const supabase = createSupabaseBrowserClient();
   const queryClient = useQueryClient();
 
@@ -117,7 +118,10 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!accountId) return alert('Set a default quick-spend account from Manage first.');
+    if (!accountId) {
+      setStatus('Set a default quick-spend account in Manage first.');
+      return;
+    }
     
     // Add to history before submitting
     if (amount && note) {
@@ -226,6 +230,7 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
           {mutation.error instanceof Error ? mutation.error.message : 'Could not add transaction.'}
         </div>
       ) : null}
+      {status ? <div className="text-sm text-[--text-secondary]">{status}</div> : null}
 
       <button
         type="submit"
