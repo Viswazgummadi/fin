@@ -109,7 +109,7 @@ export function DashboardClient() {
           <div className="space-y-6 fade-up">
             <div className="page-header">
               <h1 className="page-title">Dashboard</h1>
-              <p className="page-copy">See balances, recent activity, and patterns at a glance. Quick spend already lives in the header, so the dashboard stays clean.</p>
+              <p className="page-copy">Balances, recent activity, and trends.</p>
             </div>
 
             {error ? <InlineError error={error} /> : null}

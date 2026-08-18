@@ -135,14 +135,14 @@ export function QuickSpendSettings({ accounts }: { accounts: Account[] }) {
     mutation.mutate(next);
   };
 
-  if (isLoading) return <div className="p-4 text-sm text-[--text-secondary]">Loading quick spend settings...</div>;
+  if (isLoading) return <div className="p-4 text-sm text-[--text-secondary]">Loading...</div>;
 
   return (
     <section className="rounded-xl border border-[--border] bg-[--bg-secondary] p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Quick spend buttons</h2>
-          <p className="text-sm text-[--text-secondary]">Configure the small-spend popup. Settings now sync across your devices.</p>
+          <h2 className="text-lg font-semibold">Quick spend</h2>
+          <p className="text-sm text-[--text-secondary]">Configure quick buttons.</p>
         </div>
         <div className="flex gap-2">
           <button onClick={reset} className="rounded-[--radius] border border-[--border] px-3 py-2 text-sm">Reset</button>
@@ -162,7 +162,7 @@ export function QuickSpendSettings({ accounts }: { accounts: Account[] }) {
           >
             {accounts.length ? accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>) : <option value="">Create an account first</option>}
           </select>
-          <p className="text-xs text-[--text-muted]">Quick add will always save into this account.</p>
+          <p className="text-xs text-[--text-muted]">Default account for quick spend.</p>
         </div>
 
         <div className="space-y-3">

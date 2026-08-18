@@ -89,7 +89,7 @@ export function SetupStarterData() {
     }
 
     if (createdAccount && createdCategory) {
-      setMessage('Starter accounts and category are ready. You can now add transactions and transfers.');
+      setMessage('Starter data created.');
       router.refresh();
     }
 
@@ -98,8 +98,8 @@ export function SetupStarterData() {
 
   return (
     <div className="rounded-xl border border-border bg-bg-secondary p-4">
-      <div className="font-medium">Need starter data?</div>
-      <p className="mt-1 text-sm text-text-secondary">Create one account and one category so you can test transactions immediately.</p>
+      <div className="font-medium">Starter data</div>
+      <p className="mt-1 text-sm text-text-secondary">Create a default account and category.</p>
       <button onClick={seed} disabled={loading} className="mt-3 rounded-lg bg-accent px-4 py-2 font-medium text-black">
         {loading ? 'Creating...' : 'Create starter data'}
       </button>

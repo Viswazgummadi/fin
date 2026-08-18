@@ -94,7 +94,7 @@ export function AnalysisClient() {
     <div className="space-y-6 fade-up">
       <div>
         <h1 className="text-3xl font-semibold">Analysis</h1>
-        <p className="mt-2 max-w-3xl text-sm text-text-secondary">Fast, compact analysis focused on what you actually need day to day, now client-cached after the initial shell for quicker revisits.</p>
+        <p className="mt-2 max-w-3xl text-sm text-text-secondary">Analysis of spending patterns.</p>
       </div>
 
       {error ? <InlineError error={error} /> : null}

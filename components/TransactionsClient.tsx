@@ -56,7 +56,7 @@ export function TransactionsClient({
   const [filterPlanned, setFilterPlanned] = useState<PlannedFilter>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [popupMode, setPopupMode] = useState<'search' | 'filters' | null>(null);
+  const [popupMode, setPopupMode] = useState<'month' | 'search' | 'filters' | null>(null);
 
   const categoryOptions = useMemo(() => categories.filter((c) => c.kind === 'both' || c.kind === type), [categories, type]);
   const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
@@ -450,6 +450,7 @@ export function TransactionsClient({
 
   const openSearch = () => setPopupMode('search');
   const openFilters = () => setPopupMode('filters');
+  const openMonth = () => setPopupMode('month');
   const closePopup = () => setPopupMode(null);
 
   const setQuickWindow = (direction: -1 | 0 | 1) => {
@@ -503,29 +504,30 @@ export function TransactionsClient({
       <section className="surface-card space-y-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="kicker">Date window</div>
+            <div className="kicker">Transactions</div>
             <div className="mt-1 font-semibold">{windowLabel}</div>
-            <div className="text-sm text-[--text-secondary]">Use popups for search and filters; the month stays one tap away.</div>
+            <div className="text-sm text-[--text-secondary]">{transactions.length} rows in view</div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setWindowMonthKey(shiftMonthKey(windowMonthKey, -1))} className="btn-secondary text-sm">
-              ← Previous
+          <div className="flex items-center gap-2">
+            <button onClick={() => setWindowMonthKey(shiftMonthKey(windowMonthKey, -1))} className="btn-secondary px-3 text-sm" aria-label="Previous month">
+              ←
             </button>
-            <button onClick={openSearch} className="btn-primary text-sm">
-              🔍 Search{search ? ' • on' : ''}
+            <button onClick={openMonth} className="btn-secondary px-3 text-sm" aria-label="Choose month">
+              📅
             </button>
-            <button onClick={openFilters} className="btn-secondary text-sm">
-              ⌄ Filters{activeFilterCount ? ` • ${activeFilterCount}` : ''}
+            <button onClick={openSearch} className="btn-secondary px-3 text-sm" aria-label="Search transactions">
+              🔍
             </button>
-            <button onClick={() => setWindowMonthKey(currentMonthKey)} className="btn-ghost text-sm">
-              This month
+            <button onClick={openFilters} className="btn-secondary px-3 text-sm" aria-label="Filter transactions">
+              ⌄
             </button>
             <button
               onClick={() => setWindowMonthKey(shiftMonthKey(windowMonthKey, 1))}
-              className="btn-secondary text-sm"
+              className="btn-secondary px-3 text-sm"
               disabled={windowMonthKey >= currentMonthKey}
+              aria-label="Next month"
             >
-              Next →
+              →
             </button>
           </div>
         </div>
@@ -540,49 +542,10 @@ export function TransactionsClient({
         {loadError ? <div className="surface-soft px-3 py-2 text-sm text-[--danger]">{loadError instanceof Error ? loadError.message : 'Could not load this transaction window.'}</div> : null}
       </section>
 
-      <section className="surface-card space-y-4 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="kicker">Search</div>
-            <div className="mt-1 font-semibold">Filters & overview</div>
-            <div className="text-sm text-[--text-secondary]">Tap the popup buttons to search or narrow results without keeping controls on screen.</div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={openSearch} className="btn-secondary text-sm">
-              🔍 Search
-            </button>
-            <button onClick={openFilters} className="btn-secondary text-sm">
-              ⌄ Filters{activeFilterCount ? ` (${activeFilterCount})` : ''}
-            </button>
-            {(activeFilterCount || search) ? <button onClick={clearFilters} className="btn-ghost text-sm">Clear</button> : null}
-          </div>
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-          <div className="surface-soft flex min-h-14 items-center justify-between gap-3 px-4 py-3">
-            <div className="min-w-0">
-              <div className="text-xs uppercase tracking-wide text-[--text-muted]">Search & filters</div>
-              <div className="truncate text-sm text-[--text-secondary]">
-                {search ? `Searching “${search}”` : 'Tap search or filters to open a popup'}
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={openSearch} className="btn-secondary shrink-0 px-4 py-2 text-sm">🔍</button>
-              <button onClick={openFilters} className="btn-secondary shrink-0 px-4 py-2 text-sm">⌄</button>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
-            <Stat title="Rows" value={String(filteredTransactions.length)} />
-            <Stat title="Expense" value={formatMoney(visibleStats.expense)} mono />
-          </div>
-        </div>
-      </section>
-
       <section className="surface-card space-y-3 p-4">
         <div>
           <div className="kicker">Manual entry</div>
           <div className="mt-1 font-semibold">Add or edit transaction</div>
-          <div className="text-sm text-[--text-secondary]">No separate Add page in the nav. Quick handles tiny spends; this section handles full manual entry.</div>
         </div>
         <div className="grid gap-3 md:grid-cols-5">
           <select className="field" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
@@ -660,7 +623,7 @@ function Stat({ title, value, mono = false }: { title: string; value: string; mo
 }
 
 type TransactionsPopupProps = {
-  mode: 'search' | 'filters';
+  mode: 'month' | 'search' | 'filters';
   onClose: () => void;
   onResetAll: () => void;
   onQuickWindow: (direction: -1 | 0 | 1) => void;
@@ -741,14 +704,16 @@ function TransactionsPopup({
           <div className="border-b border-[--border] px-4 py-4 sm:px-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="kicker">Explore transactions</div>
+                <div className="kicker">Transactions</div>
                 <h2 className="mt-1 text-lg font-semibold sm:text-xl">
-                  {mode === 'search' ? 'Search transactions' : 'Filter transactions'}
+                  {mode === 'search' ? 'Search' : mode === 'filters' ? 'Filters' : 'Month'}
                 </h2>
                 <p className="mt-1 text-sm text-[--text-secondary]">
                   {mode === 'search'
-                    ? 'Quickly find notes, amounts, accounts, or categories in the current month.'
-                    : 'Narrow the current month with account, type, category, planned state, and dates.'}
+                    ? 'Find notes, amounts, accounts, or categories.'
+                    : mode === 'filters'
+                      ? 'Narrow the current month by account, type, category, and date.'
+                      : 'Jump between months without leaving the page.'}
                 </p>
               </div>
               <button onClick={onClose} className="btn-ghost shrink-0 px-3 py-2 text-sm">
@@ -759,8 +724,8 @@ function TransactionsPopup({
 
           <div className={`grid flex-1 gap-4 overflow-y-auto px-4 py-4 sm:px-5 ${mode === 'filters' ? 'lg:grid-cols-[1.1fr_1fr]' : ''}`}>
             <section className="space-y-4">
-              {mode === 'filters' ? (
-              <div className="surface-soft p-4">
+              {mode === 'month' || mode === 'filters' ? (
+                <div className="surface-soft p-4">
                 <div className="kicker">Date window</div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button onClick={() => onQuickWindow(-1)} className="btn-secondary text-sm">
@@ -787,6 +752,7 @@ function TransactionsPopup({
               </div>
               ) : null}
 
+              {mode === 'search' ? (
               <div className="surface-soft p-4">
                 <div className="kicker">Search</div>
                 <label className="mt-2 block text-sm text-[--text-secondary]">
@@ -803,6 +769,7 @@ function TransactionsPopup({
                   {search ? <button onClick={() => setSearch('')} className="btn-ghost text-sm">Clear search</button> : null}
                 </div>
               </div>
+              ) : null}
             </section>
 
             {mode === 'filters' ? (

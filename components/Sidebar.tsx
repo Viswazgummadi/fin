@@ -56,8 +56,8 @@ export function Sidebar({ initialCollapsed = false }: { initialCollapsed?: boole
       <aside className={`glass-nav fixed bottom-4 left-4 top-4 z-40 overflow-y-auto p-3 transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
         <div className={`mb-5 flex ${collapsed ? 'justify-center' : 'items-start justify-between'} gap-2`}>
           <div className={collapsed ? 'hidden' : 'block'}>
-            <div className="text-sm text-[--text-secondary]">Private money journal</div>
-            <div className="bg-gradient-to-r from-[--text-primary] to-[--accent] bg-clip-text font-mono text-xl text-transparent">Calm finance</div>
+            <div className="text-sm text-[--text-secondary]">Private finance</div>
+            <div className="bg-gradient-to-r from-[--text-primary] to-[--accent] bg-clip-text font-mono text-xl text-transparent">Calm Ledger</div>
           </div>
           <button onClick={toggle} className={`btn-ghost flex h-10 w-10 items-center justify-center self-start px-0 py-0 text-sm ${collapsed ? 'mx-auto' : ''}`}>
             {collapsed ? '→' : '←'}

@@ -11,7 +11,7 @@ export default async function TagsPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-semibold">Tags</h1>
-          <p className="mt-2 max-w-3xl text-sm text-text-secondary">Create labels for faster filtering and limit scoping.</p>
+          <p className="mt-2 max-w-3xl text-sm text-text-secondary">Labels for filtering and limits.</p>
         </div>
         <TagsClient initialTags={tags} />
       </div>

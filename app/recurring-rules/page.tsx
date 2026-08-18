@@ -11,7 +11,7 @@ export default async function RecurringRulesPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-semibold">Recurring rules</h1>
-          <p className="mt-2 max-w-3xl text-sm text-text-secondary">Define repeat transactions you expect every week, month, or year.</p>
+          <p className="mt-2 max-w-3xl text-sm text-text-secondary">Repeat transactions you expect.</p>
         </div>
         <RecurringRulesClient initialRules={rules} accounts={accounts} categories={categories} />
       </div>

@@ -171,9 +171,9 @@ export function BackupRestoreClient() {
     <div className="surface-card space-y-5 p-5 fade-up">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <div className="kicker">Safety</div>
+          <div className="kicker">Backup</div>
           <div className="mt-2 text-lg font-semibold">Backup / Restore</div>
-          <p className="mt-1 max-w-2xl text-sm text-[--text-secondary]">Export your latest data as JSON any time, or restore from a previous backup with a deliberate confirmation step.</p>
+          <p className="mt-1 max-w-2xl text-sm text-[--text-secondary]">Export JSON or restore a backup.</p>
         </div>
         <div className="grid min-w-[220px] gap-2 text-sm text-[--text-secondary] sm:grid-cols-3 lg:grid-cols-1">
           <div className="surface-soft px-3 py-2">JSON backup</div>

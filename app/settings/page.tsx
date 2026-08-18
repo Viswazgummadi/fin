@@ -7,13 +7,13 @@ export default async function SettingsPage() {
       <div className="space-y-6 fade-up">
         <div className="page-header">
           <h1 className="page-title">Settings</h1>
-          <p className="page-copy">Backups, restore, workspace behavior, and future system-level options.</p>
+          <p className="page-copy">Backups, restore, and app settings.</p>
         </div>
         <BackupRestoreClient />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <Card title="Shortcuts" text="Keep your flow fast: quick spend in the header, full entry inside transactions, and focused filters when you need detail." />
-          <Card title="Theme" text="Dark-first, low-glare, mono-number design tuned for long usage and mobile comfort." />
-          <Card title="AI summaries" text="Optional later. Kept intentionally absent for now so the app stays fast and focused." />
+          <Card title="Shortcuts" text="Quick spend in the header, full entry in transactions." />
+          <Card title="Theme" text="Dark-first, low-glare, mono-number design." />
+          <Card title="AI summaries" text="Kept out for this MVP." />
         </div>
       </div>
     </AppShell>

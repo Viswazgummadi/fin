@@ -16,8 +16,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-30 border-b border-[--border] bg-[--bg-primary]/90 px-3 py-3 backdrop-blur-sm sm:px-4 lg:px-6">
           <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
             <Link href="/" className="min-w-0">
-              <div className="truncate text-sm font-medium tracking-wide">Finance Journal</div>
-              <div className="truncate text-xs text-[--text-muted]">Private, calm, fast</div>
+              <div className="truncate text-sm font-medium tracking-wide">Calm Ledger</div>
+              <div className="truncate text-xs text-[--text-muted]">Private finance</div>
             </Link>
             <HeaderActions />
           </div>

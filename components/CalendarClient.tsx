@@ -49,7 +49,7 @@ export function CalendarClient() {
     <div className="space-y-6 fade-up">
       <div>
         <h1 className="text-3xl font-semibold">Calendar</h1>
-        <p className="mt-2 max-w-3xl text-sm text-text-secondary">Heatmap-style daily review. Tap a day to open the journal for that date.</p>
+        <p className="mt-2 max-w-3xl text-sm text-text-secondary">Daily heatmap and journal entry.</p>
       </div>
 
       {transactionsQuery.error ? <InlineError error={transactionsQuery.error} /> : null}

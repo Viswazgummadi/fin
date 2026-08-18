@@ -1,4 +1,4 @@
-# Personal Finance Journal
+# Calm Ledger
 
 ## Local development
 1. Copy `.env.example` to `.env.local`

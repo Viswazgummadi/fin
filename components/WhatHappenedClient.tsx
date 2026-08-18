@@ -83,7 +83,7 @@ export function WhatHappenedClient({ selectedDate }: { selectedDate: string }) {
     <div className="space-y-6 fade-up">
       <div>
         <h1 className="text-3xl font-semibold">What happened?</h1>
-        <p className="mt-2 max-w-3xl text-sm text-text-secondary">A daily journal view for the chosen date. Built for quick review on mobile and desktop.</p>
+        <p className="mt-2 max-w-3xl text-sm text-text-secondary">Daily view for the selected date.</p>
       </div>
 
       {error ? <InlineError error={error} /> : null}
@@ -117,7 +117,7 @@ export function WhatHappenedClient({ selectedDate }: { selectedDate: string }) {
       </div>
 
       <div className="rounded-xl border border-border bg-bg-secondary p-4">
-        <div className="mb-3 text-sm text-text-secondary">Transactions for {selectedDate}</div>
+        <div className="mb-3 text-sm text-text-secondary">{selectedDate}</div>
         <div className="space-y-2">
           {derived.list.length ? derived.list.map((txn) => (
             <div key={txn.id} className="flex flex-col gap-3 rounded-lg border border-border bg-bg-primary/60 p-3 sm:flex-row sm:items-center sm:justify-between">

@@ -14,12 +14,12 @@ export default function MorePage() {
       <div className="space-y-6 fade-up">
         <div className="page-header">
           <h1 className="page-title">More</h1>
-          <p className="page-copy">A calm overflow space for secondary actions, optimized for fast mobile access without crowding the main navigation.</p>
+          <p className="page-copy">Secondary actions.</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-2">
           {shortcuts.map(([label, href, desc]) => (
             <Link key={href} href={href} className="surface-card p-4 hover:-translate-y-0.5">
-              <div className="kicker">Workspace</div>
+              <div className="kicker">Section</div>
               <div className="mt-2 font-medium">{label}</div>
               <div className="mt-1 text-sm text-[--text-secondary]">{desc}</div>
             </Link>

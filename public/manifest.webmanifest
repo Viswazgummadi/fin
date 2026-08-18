@@ -1,6 +1,6 @@
 {
-  "name": "Personal Finance Journal",
-  "short_name": "Fin Journal",
+  "name": "Calm Ledger",
+  "short_name": "Ledger",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#0f0f10",

@@ -25,7 +25,7 @@ export default async function TransactionsPage() {
       <div className="space-y-6 fade-up">
         <div className="page-header">
           <h1 className="page-title">Transactions</h1>
-          <p className="page-copy">Dense, fast, and practical. Quick spend lives in the header; full manual entry lives here. Transactions now open in a bounded monthly window for faster loads.</p>
+          <p className="page-copy">Month-based transaction log with compact popups for search and filters.</p>
         </div>
         {!accounts.length || !categories.length ? <SetupStarterData /> : null}
         <TransactionsClient initialTransactions={transactions} initialMonthKey={initialMonthKey} accounts={accounts} categories={categories} />

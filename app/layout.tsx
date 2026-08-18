@@ -4,8 +4,8 @@ import { PWARegister } from '../components/PWARegister';
 import { Providers } from '../components/Providers';
 
 export const metadata: Metadata = {
-  title: 'Personal Finance Journal',
-  description: 'A private personal money journal and analysis app.',
+  title: 'Calm Ledger',
+  description: 'Private personal finance, simplified.',
   manifest: '/manifest.webmanifest',
 };
 
