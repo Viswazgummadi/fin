@@ -56,7 +56,7 @@ export function TransactionsClient({
   const [filterPlanned, setFilterPlanned] = useState<PlannedFilter>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [isExploreOpen, setIsExploreOpen] = useState(false);
+  const [popupMode, setPopupMode] = useState<'search' | 'filters' | null>(null);
 
   const categoryOptions = useMemo(() => categories.filter((c) => c.kind === 'both' || c.kind === type), [categories, type]);
   const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
@@ -433,10 +433,10 @@ export function TransactionsClient({
   };
 
   useEffect(() => {
-    if (!isExploreOpen) return;
+    if (!popupMode) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsExploreOpen(false);
+      if (event.key === 'Escape') setPopupMode(null);
     };
 
     document.body.style.overflow = 'hidden';
@@ -446,10 +446,11 @@ export function TransactionsClient({
       document.body.style.overflow = '';
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isExploreOpen]);
+  }, [popupMode]);
 
-  const openExplore = () => setIsExploreOpen(true);
-  const closeExplore = () => setIsExploreOpen(false);
+  const openSearch = () => setPopupMode('search');
+  const openFilters = () => setPopupMode('filters');
+  const closePopup = () => setPopupMode(null);
 
   const setQuickWindow = (direction: -1 | 0 | 1) => {
     if (direction === 0) {
@@ -459,9 +460,10 @@ export function TransactionsClient({
     setWindowMonthKey(shiftMonthKey(windowMonthKey, direction));
   };
 
-  const exploreOverlay = isExploreOpen ? (
-    <TransactionsExplorer
-      onClose={closeExplore}
+  const popup = popupMode ? (
+    <TransactionsPopup
+      mode={popupMode}
+      onClose={closePopup}
       onResetAll={() => {
         clearFilters();
         setWindowMonthKey(initialMonthKey);
@@ -503,14 +505,17 @@ export function TransactionsClient({
           <div>
             <div className="kicker">Date window</div>
             <div className="mt-1 font-semibold">{windowLabel}</div>
-            <div className="text-sm text-[--text-secondary]">Open the explorer to change month, search, and filters in one place.</div>
+            <div className="text-sm text-[--text-secondary]">Use popups for search and filters; the month stays one tap away.</div>
           </div>
           <div className="flex flex-wrap gap-2">
             <button onClick={() => setWindowMonthKey(shiftMonthKey(windowMonthKey, -1))} className="btn-secondary text-sm">
               ← Previous
             </button>
-            <button onClick={openExplore} className="btn-primary text-sm">
-              Explore filters{activeFilterCount || search ? ` (${activeFilterCount + (search ? 1 : 0)})` : ''}
+            <button onClick={openSearch} className="btn-primary text-sm">
+              🔍 Search{search ? ' • on' : ''}
+            </button>
+            <button onClick={openFilters} className="btn-secondary text-sm">
+              ⌄ Filters{activeFilterCount ? ` • ${activeFilterCount}` : ''}
             </button>
             <button onClick={() => setWindowMonthKey(currentMonthKey)} className="btn-ghost text-sm">
               This month
@@ -540,11 +545,14 @@ export function TransactionsClient({
           <div>
             <div className="kicker">Search</div>
             <div className="mt-1 font-semibold">Filters & overview</div>
-            <div className="text-sm text-[--text-secondary]">Use the explorer for search and narrowing; this area stays focused on the list.</div>
+            <div className="text-sm text-[--text-secondary]">Tap the popup buttons to search or narrow results without keeping controls on screen.</div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button onClick={openExplore} className="btn-secondary text-sm">
-              Open explorer{activeFilterCount || search ? ` (${activeFilterCount + (search ? 1 : 0)})` : ''}
+            <button onClick={openSearch} className="btn-secondary text-sm">
+              🔍 Search
+            </button>
+            <button onClick={openFilters} className="btn-secondary text-sm">
+              ⌄ Filters{activeFilterCount ? ` (${activeFilterCount})` : ''}
             </button>
             {(activeFilterCount || search) ? <button onClick={clearFilters} className="btn-ghost text-sm">Clear</button> : null}
           </div>
@@ -555,12 +563,13 @@ export function TransactionsClient({
             <div className="min-w-0">
               <div className="text-xs uppercase tracking-wide text-[--text-muted]">Search & filters</div>
               <div className="truncate text-sm text-[--text-secondary]">
-                {search ? `Searching “${search}”` : 'Open the explorer to search or filter'}
+                {search ? `Searching “${search}”` : 'Tap search or filters to open a popup'}
               </div>
             </div>
-            <button onClick={openExplore} className="btn-secondary shrink-0 px-4 py-2 text-sm">
-              Open
-            </button>
+            <div className="flex gap-2">
+              <button onClick={openSearch} className="btn-secondary shrink-0 px-4 py-2 text-sm">🔍</button>
+              <button onClick={openFilters} className="btn-secondary shrink-0 px-4 py-2 text-sm">⌄</button>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3 md:flex md:items-center">
             <Stat title="Rows" value={String(filteredTransactions.length)} />
@@ -636,7 +645,7 @@ export function TransactionsClient({
           </div>
         )) : <div className="surface-card p-4 text-sm text-[--text-secondary]">No transactions match the current filters.</div>}
       </div>
-      {exploreOverlay}
+      {popup}
     </div>
   );
 }
@@ -650,7 +659,8 @@ function Stat({ title, value, mono = false }: { title: string; value: string; mo
   );
 }
 
-type TransactionsExplorerProps = {
+type TransactionsPopupProps = {
+  mode: 'search' | 'filters';
   onClose: () => void;
   onResetAll: () => void;
   onQuickWindow: (direction: -1 | 0 | 1) => void;
@@ -680,7 +690,8 @@ type TransactionsExplorerProps = {
   visibleStats: { income: number; expense: number; transfers: number };
 };
 
-function TransactionsExplorer({
+function TransactionsPopup({
+  mode,
   onClose,
   onResetAll,
   onQuickWindow,
@@ -708,7 +719,7 @@ function TransactionsExplorer({
   setDateTo,
   filteredTransactionsCount,
   visibleStats,
-}: TransactionsExplorerProps) {
+}: TransactionsPopupProps) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -731,8 +742,14 @@ function TransactionsExplorer({
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="kicker">Explore transactions</div>
-                <h2 className="mt-1 text-lg font-semibold sm:text-xl">Window, search, and filters</h2>
-                <p className="mt-1 text-sm text-[--text-secondary]">Keep the page clean; tune the month window and search only when you need them.</p>
+                <h2 className="mt-1 text-lg font-semibold sm:text-xl">
+                  {mode === 'search' ? 'Search transactions' : 'Filter transactions'}
+                </h2>
+                <p className="mt-1 text-sm text-[--text-secondary]">
+                  {mode === 'search'
+                    ? 'Quickly find notes, amounts, accounts, or categories in the current month.'
+                    : 'Narrow the current month with account, type, category, planned state, and dates.'}
+                </p>
               </div>
               <button onClick={onClose} className="btn-ghost shrink-0 px-3 py-2 text-sm">
                 Close
@@ -740,8 +757,9 @@ function TransactionsExplorer({
             </div>
           </div>
 
-          <div className="grid flex-1 gap-4 overflow-y-auto px-4 py-4 sm:px-5 lg:grid-cols-[1.1fr_1fr]">
+          <div className={`grid flex-1 gap-4 overflow-y-auto px-4 py-4 sm:px-5 ${mode === 'filters' ? 'lg:grid-cols-[1.1fr_1fr]' : ''}`}>
             <section className="space-y-4">
+              {mode === 'filters' ? (
               <div className="surface-soft p-4">
                 <div className="kicker">Date window</div>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -767,6 +785,7 @@ function TransactionsExplorer({
                   </div>
                 </div>
               </div>
+              ) : null}
 
               <div className="surface-soft p-4">
                 <div className="kicker">Search</div>
@@ -777,7 +796,7 @@ function TransactionsExplorer({
                     placeholder="Search transactions"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    autoFocus
+                    autoFocus={mode === 'search'}
                   />
                 </label>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -786,50 +805,64 @@ function TransactionsExplorer({
               </div>
             </section>
 
-            <section className="space-y-4">
-              <div className="surface-soft p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="kicker">Filters</div>
-                    <div className="mt-1 font-medium">Narrow results</div>
+            {mode === 'filters' ? (
+              <section className="space-y-4">
+                <div className="surface-soft p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="kicker">Filters</div>
+                      <div className="mt-1 font-medium">Narrow results</div>
+                    </div>
+                    {activeFilterCount ? <span className="rounded-full border border-[--border] px-2.5 py-1 text-xs text-[--text-secondary]">{activeFilterCount} active</span> : null}
                   </div>
-                  {activeFilterCount ? <span className="rounded-full border border-[--border] px-2.5 py-1 text-xs text-[--text-secondary]">{activeFilterCount} active</span> : null}
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <select className="field" value={filterAccountId} onChange={(e) => setFilterAccountId(e.target.value)}>
+                      <option value="all">All accounts</option>
+                      {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+                    </select>
+                    <select className="field" value={filterType} onChange={(e) => setFilterType(e.target.value as 'all' | Transaction['type'])}>
+                      <option value="all">All types</option>
+                      <option value="expense">Expense</option>
+                      <option value="income">Income</option>
+                      <option value="transfer">Transfer</option>
+                    </select>
+                    <select className="field" value={filterPlanned} onChange={(e) => setFilterPlanned(e.target.value as PlannedFilter)}>
+                      <option value="all">All planned states</option>
+                      <option value="planned">Planned</option>
+                      <option value="unplanned">Unplanned</option>
+                    </select>
+                    <select className="field" value={filterCategoryId} onChange={(e) => setFilterCategoryId(e.target.value)}>
+                      <option value="all">All categories</option>
+                      {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                    </select>
+                    <input className="field" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                    <input className="field" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                  </div>
                 </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <select className="field" value={filterAccountId} onChange={(e) => setFilterAccountId(e.target.value)}>
-                    <option value="all">All accounts</option>
-                    {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
-                  </select>
-                  <select className="field" value={filterType} onChange={(e) => setFilterType(e.target.value as 'all' | Transaction['type'])}>
-                    <option value="all">All types</option>
-                    <option value="expense">Expense</option>
-                    <option value="income">Income</option>
-                    <option value="transfer">Transfer</option>
-                  </select>
-                  <select className="field" value={filterPlanned} onChange={(e) => setFilterPlanned(e.target.value as PlannedFilter)}>
-                    <option value="all">All planned states</option>
-                    <option value="planned">Planned</option>
-                    <option value="unplanned">Unplanned</option>
-                  </select>
-                  <select className="field" value={filterCategoryId} onChange={(e) => setFilterCategoryId(e.target.value)}>
-                    <option value="all">All categories</option>
-                    {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                  </select>
-                  <input className="field" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                  <input className="field" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-                </div>
-              </div>
 
-              <div className="surface-soft p-4">
-                <div className="kicker">Overview</div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <Stat title="Visible rows" value={String(filteredTransactionsCount)} />
-                  <Stat title="Income" value={formatMoney(visibleStats.income)} mono />
-                  <Stat title="Expense" value={formatMoney(visibleStats.expense)} mono />
-                  <Stat title="Transfers" value={String(visibleStats.transfers)} />
+                <div className="surface-soft p-4">
+                  <div className="kicker">Overview</div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <Stat title="Visible rows" value={String(filteredTransactionsCount)} />
+                    <Stat title="Income" value={formatMoney(visibleStats.income)} mono />
+                    <Stat title="Expense" value={formatMoney(visibleStats.expense)} mono />
+                    <Stat title="Transfers" value={String(visibleStats.transfers)} />
+                  </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            ) : (
+              <section className="space-y-4">
+                <div className="surface-soft p-4">
+                  <div className="kicker">Overview</div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <Stat title="Visible rows" value={String(filteredTransactionsCount)} />
+                    <Stat title="Income" value={formatMoney(visibleStats.income)} mono />
+                    <Stat title="Expense" value={formatMoney(visibleStats.expense)} mono />
+                    <Stat title="Transfers" value={String(visibleStats.transfers)} />
+                  </div>
+                </div>
+              </section>
+            )}
           </div>
 
           <div className="border-t border-[--border] px-4 py-4 sm:px-5">
