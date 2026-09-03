@@ -6,10 +6,10 @@ export const dynamic = 'force-dynamic';
 export default async function TagsPage() {
   const tags = await getTags();
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold">Tags</h1>
-        <p className="mt-2 max-w-3xl text-sm text-text-secondary">Labels for filtering and limits.</p>
+    <div className="space-y-6 fade-up">
+      <div className="page-header">
+        <h1 className="page-title">Tags</h1>
+        <p className="page-copy">Labels for filtering, tagging transactions, and limits.</p>
       </div>
       <TagsClient initialTags={tags} />
     </div>

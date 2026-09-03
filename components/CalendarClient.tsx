@@ -1,8 +1,9 @@
 "use client";
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Transaction } from '../lib/types';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 import { buildMonthGrid, formatMoney, summarizeDailySpend, toDateKey } from '../lib/insights';
@@ -10,10 +11,19 @@ import { queryKeys } from '../lib/query-keys';
 
 const REVIEW_TRANSACTION_SELECT = 'id,type,amount,category_id,note,occurred_at,is_planned,deleted_at';
 const EMPTY_TRANSACTIONS: Transaction[] = [];
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export function CalendarClient() {
   const supabase = createSupabaseBrowserClient();
   const todayKey = useMemo(() => toDateKey(new Date()), []);
+  const [monthOffset, setMonthOffset] = useState(0);
+
+  const reference = useMemo(() => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + monthOffset);
+    return d;
+  }, [monthOffset]);
 
   const transactionsQuery = useQuery({
     queryKey: queryKeys.reviewTransactions,
@@ -35,11 +45,13 @@ export function CalendarClient() {
 
   const derived = useMemo(() => {
     const spendMap = summarizeDailySpend(transactions);
-    const grid = buildMonthGrid(new Date(), spendMap);
-    const activeDays = [...spendMap.values()].filter(Boolean).length;
-    const totalSpend = [...spendMap.values()].reduce((sum, value) => sum + value, 0);
-    return { spendMap, grid, activeDays, totalSpend };
-  }, [transactions]);
+    const grid = buildMonthGrid(reference, spendMap);
+    const monthSpends = grid.days.filter((d) => d.inMonth).map((d) => d.spend);
+    const activeDays = monthSpends.filter(Boolean).length;
+    const totalSpend = monthSpends.reduce((sum, value) => sum + value, 0);
+    const maxSpend = Math.max(1, ...monthSpends);
+    return { grid, activeDays, totalSpend, maxSpend };
+  }, [transactions, reference]);
 
   if (transactionsQuery.isLoading && !transactions.length) {
     return <CalendarSkeleton />;
@@ -47,9 +59,25 @@ export function CalendarClient() {
 
   return (
     <div className="space-y-6 fade-up">
-      <div>
-        <h1 className="text-3xl font-semibold">Calendar</h1>
-        <p className="mt-2 max-w-3xl text-sm text-text-secondary">Daily heatmap and journal entry.</p>
+      <div className="page-header flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="page-title">Calendar</h1>
+          <p className="page-copy">Daily spend heatmap — jump into any day&apos;s journal.</p>
+        </div>
+        <div className="glass-1 inline-flex items-center gap-1 p-1">
+          <button onClick={() => setMonthOffset((m) => m - 1)} className="btn-ghost px-2 py-1.5" aria-label="Previous month">
+            <ChevronLeft size={16} />
+          </button>
+          <button
+            onClick={() => setMonthOffset(0)}
+            className={`rounded-[--radius-xs] px-3 py-1.5 text-xs font-medium ${monthOffset === 0 ? 'bg-[--accent-wash] text-[--text-primary]' : 'text-[--text-secondary] hover:text-[--text-primary]'}`}
+          >
+            This month
+          </button>
+          <button onClick={() => setMonthOffset((m) => m + 1)} className="btn-ghost px-2 py-1.5" aria-label="Next month">
+            <ChevronRight size={16} />
+          </button>
+        </div>
       </div>
 
       {transactionsQuery.error ? <InlineError error={transactionsQuery.error} /> : null}
@@ -60,23 +88,40 @@ export function CalendarClient() {
         <Metric title="Total spend" value={formatMoney(derived.totalSpend)} />
       </div>
 
-      <section className="rounded-xl border border-border bg-bg-secondary p-3 sm:p-4">
-        <div className="grid grid-cols-7 gap-1.5 text-center text-[11px] text-text-secondary sm:gap-2 sm:text-xs">
-          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d) => <div key={d}>{d}</div>)}
-          {derived.grid.days.map((day) => (
-            <Link
-              key={day.key}
-              href={`/whathappened?date=${day.key}`}
-              className={`min-h-16 rounded-lg border p-1.5 transition sm:min-h-20 sm:p-2 ${
-                day.inMonth ? 'border-border' : 'border-border/40 text-text-muted'
-              } ${day.key === todayKey ? 'border-[--accent] ring-2 ring-[--accent]/30 bg-[--accent]/5' : ''} ${
-                day.spend > 0 ? 'bg-accent/10' : 'bg-bg-primary/50'
-              } hover:bg-bg-tertiary`}
-            >
-              <div className={`font-medium ${day.key === todayKey ? 'text-[--accent]' : 'text-text-primary'}`}>{day.label}</div>
-              <div className="mt-1 font-mono text-[10px] sm:text-[11px]">{day.spend ? formatMoney(day.spend) : '—'}</div>
-            </Link>
+      <section className="surface-card p-3 sm:p-4">
+        <div className="mb-2 grid grid-cols-7 gap-1.5 text-center sm:gap-2">
+          {WEEKDAY_LABELS.map((d) => (
+            <div key={d} className="kicker">{d}</div>
           ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+          {derived.grid.days.map((day) => {
+            const isToday = day.key === todayKey;
+            const intensity = day.inMonth && day.spend > 0 ? Math.min(1, day.spend / derived.maxSpend) : 0;
+            return (
+              <Link
+                key={day.key}
+                href={`/whathappened?date=${day.key}`}
+                className={`min-h-16 rounded-[--radius-xs] border p-1.5 transition sm:min-h-20 sm:p-2 ${
+                  day.inMonth ? 'border-[--hairline]' : 'border-[--hairline]/40'
+                } ${isToday ? 'border-[--accent] ring-2 ring-[--accent]/30' : ''} hover:border-[--accent-2]/40`}
+                style={{
+                  background: day.inMonth
+                    ? intensity > 0
+                      ? `rgba(var(--danger-rgb), ${0.08 + intensity * 0.28})`
+                      : 'rgba(255,255,255,0.015)'
+                    : 'transparent',
+                }}
+              >
+                <div className={`font-medium ${isToday ? 'text-[--accent]' : day.inMonth ? 'text-[--text-primary]' : 'text-[--text-muted]'}`}>
+                  {day.label}
+                </div>
+                <div className="mt-1 font-mono text-[10px] text-[--text-secondary] sm:text-[11px]">
+                  {day.inMonth && day.spend ? formatMoney(day.spend) : day.inMonth ? '—' : ''}
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </section>
     </div>
@@ -85,8 +130,8 @@ export function CalendarClient() {
 
 function Metric({ title, value }: { title: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border bg-bg-secondary p-4">
-      <div className="text-sm text-text-secondary">{title}</div>
+    <div className="surface-card p-4">
+      <div className="text-sm text-[--text-secondary]">{title}</div>
       <div className="mt-2 font-mono text-2xl">{value}</div>
     </div>
   );

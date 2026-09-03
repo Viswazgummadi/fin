@@ -1,10 +1,19 @@
 "use client";
 
 import { useMemo, useState } from 'react';
+import { Landmark, Banknote, Wallet as WalletIcon, CreditCard, CircleDollarSign } from 'lucide-react';
 import type { Account, Transaction } from '../lib/types';
 import { calculateAccountBalances } from '../lib/finance';
 import { formatMoney } from '../lib/insights';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
+
+const TYPE_ICON: Record<Account['type'], typeof Landmark> = {
+  bank: Landmark,
+  cash: Banknote,
+  wallet: WalletIcon,
+  credit: CreditCard,
+  other: CircleDollarSign,
+};
 
 export function AccountsClient({ initialAccounts, transactions }: { initialAccounts: Account[]; transactions: Transaction[] }) {
   const supabase = createSupabaseBrowserClient();
@@ -13,6 +22,7 @@ export function AccountsClient({ initialAccounts, transactions }: { initialAccou
   const [type, setType] = useState<Account['type']>('bank');
   const [editingId, setEditingId] = useState<string | null>(null);
   const balances = useMemo(() => calculateAccountBalances(accounts, transactions), [accounts, transactions]);
+  const totalBalance = useMemo(() => [...balances.values()].reduce((sum, v) => sum + v, 0), [balances]);
 
   const reset = () => {
     setEditingId(null);
@@ -46,11 +56,18 @@ export function AccountsClient({ initialAccounts, transactions }: { initialAccou
   };
 
   return (
-    <div className="space-y-4 fade-up">
+    <div className="space-y-4">
+      {accounts.length ? (
+        <div className="surface-card p-4">
+          <div className="text-sm text-[--text-secondary]">Total across {accounts.length} account{accounts.length === 1 ? '' : 's'}</div>
+          <div className="mt-2 font-mono text-2xl">{formatMoney(totalBalance)}</div>
+        </div>
+      ) : null}
+
       <section className="surface-card p-4">
         <div className="mb-3">
           <div className="kicker">Structure</div>
-          <div className="mt-1 font-medium">Create or edit account</div>
+          <div className="mt-1 font-medium">{editingId ? 'Edit account' : 'Create account'}</div>
         </div>
         <div className="grid gap-3 md:grid-cols-3">
           <input className="field" placeholder="Account name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -67,22 +84,35 @@ export function AccountsClient({ initialAccounts, transactions }: { initialAccou
       </section>
 
       <div className="grid gap-3">
-        {accounts.map((a) => (
-          <div key={a.id} className="surface-card p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="font-medium">{a.name}</div>
-                <div className="mt-1 text-sm text-[--text-secondary]">{a.type} · Balance <span className="font-mono text-[--text-primary]">{formatMoney(balances.get(a.id) ?? 0)}</span></div>
-                <div className="mt-1 text-xs text-[--text-muted]">Opening {formatMoney(Number(a.opening_balance || 0))}</div>
+        {accounts.length ? accounts.map((a) => {
+          const Icon = TYPE_ICON[a.type];
+          const balance = balances.get(a.id) ?? 0;
+          return (
+            <div key={a.id} className="data-row flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="surface-soft flex h-10 w-10 shrink-0 items-center justify-center">
+                  <Icon size={18} className="text-[--accent-2]" />
+                </span>
+                <div className="min-w-0">
+                  <div className="font-medium">{a.name}</div>
+                  <div className="mt-0.5 text-sm capitalize text-[--text-secondary]">
+                    {a.type} · <span className="font-mono text-[--text-primary]">{formatMoney(balance)}</span>
+                  </div>
+                  <div className="mt-0.5 text-xs text-[--text-muted]">Opening {formatMoney(Number(a.opening_balance || 0))}</div>
+                </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex shrink-0 gap-2">
                 <button onClick={() => edit(a)} className="btn-secondary text-sm">Edit</button>
                 <button onClick={() => archive(a.id)} className="btn-ghost text-sm">Archive</button>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        }) : <EmptyState text="No accounts yet. Add your first account above." />}
       </div>
     </div>
   );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return <div className="rounded-[--radius-sm] border border-dashed border-[--hairline] p-6 text-center text-sm text-[--text-muted]">{text}</div>;
 }

@@ -4,6 +4,12 @@ import { useState } from 'react';
 import type { Category } from '../lib/types';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 
+const KIND_COLOR: Record<Category['kind'], string> = {
+  expense: 'var(--danger)',
+  income: 'var(--accent)',
+  both: 'var(--accent-2)',
+};
+
 export function CategoriesClient({ initialCategories }: { initialCategories: Category[] }) {
   const supabase = createSupabaseBrowserClient();
   const [categories, setCategories] = useState(initialCategories);
@@ -47,11 +53,11 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
   };
 
   return (
-    <div className="space-y-4 fade-up">
+    <div className="space-y-4">
       <section className="surface-card p-4">
         <div className="mb-3">
           <div className="kicker">Classification</div>
-          <div className="mt-1 font-medium">Create or edit category</div>
+          <div className="mt-1 font-medium">{editingId ? 'Edit category' : 'Create category'}</div>
         </div>
         <div className="grid gap-3 md:grid-cols-4">
           <input className="field" placeholder="Category name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -71,21 +77,33 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
       </section>
 
       <div className="grid gap-3">
-        {categories.map((c) => (
-          <div key={c.id} className="surface-card p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
+        {categories.length ? categories.map((c) => (
+          <div key={c.id} className="data-row flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: KIND_COLOR[c.kind] }} />
+              <div className="min-w-0">
                 <div className="font-medium">{c.name}</div>
-                <div className="mt-1 text-sm text-[--text-secondary]">{c.kind}{c.is_essential === null ? '' : c.is_essential ? ' · essential' : ' · optional'}</div>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => edit(c)} className="btn-secondary text-sm">Edit</button>
-                <button onClick={() => archive(c.id)} className="btn-ghost text-sm">Archive</button>
+                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-sm capitalize text-[--text-secondary]">
+                  {c.kind}
+                  {c.is_essential !== null ? (
+                    <span className="surface-soft px-2 py-0.5 text-xs capitalize text-[--text-secondary]">
+                      {c.is_essential ? 'Essential' : 'Optional'}
+                    </span>
+                  ) : null}
+                </div>
               </div>
             </div>
+            <div className="flex shrink-0 gap-2">
+              <button onClick={() => edit(c)} className="btn-secondary text-sm">Edit</button>
+              <button onClick={() => archive(c.id)} className="btn-ghost text-sm">Archive</button>
+            </div>
           </div>
-        ))}
+        )) : <EmptyState text="No categories yet. Add your first category above." />}
       </div>
     </div>
   );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return <div className="rounded-[--radius-sm] border border-dashed border-[--hairline] p-6 text-center text-sm text-[--text-muted]">{text}</div>;
 }

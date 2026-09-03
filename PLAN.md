@@ -122,8 +122,24 @@ Two things, in this order:
 1. **Wire tags into transaction entry** (see P3's finding above — this is now the priority item, not optional polish). Add a tag multi-select to the add/edit transaction form in `TransactionsClient.tsx`, save to `transaction_tags` on submit, load existing tags when editing. Leave `QuickAdd.tsx` alone (deliberately minimal/fast, no tags there).
 2. Restyle `QuickAdd`/`QuickAddModal`/`TransactionsClient` (853 lines, the biggest component) onto the glass design system. Keep the offline-outbox behavior in `lib/offline-sync.ts` intact — don't touch that mechanism, only the UI around it.
 
-### P6 — Remaining screens visual pass 🟨 (dispatched — see §7)
-Accounts, Categories, Tags, People, Goals, Limits, Recurring rules, Calendar, What Happened, Settings — bring onto the new design system/primitives (`.glass-1`/`.surface-card`, `.page-header`/`.page-title`, chart primitives where relevant e.g. Goals progress rings). Mostly mechanical once P1-P2 exist. Note from P1: several of these already hand-roll `<h1 className="text-3xl font-semibold">` instead of `.page-header` — normalize that here.
+### P6 — Remaining screens visual pass ✅
+Ran as a worktree-isolated agent (branch `worktree-agent-a0717a34abd80656e`, committed there — not yet merged to `main`, per the dispatch instructions to commit locally and leave merging to whoever picks this up next). The worktree had branched before P1-P3 landed, so the first step was fast-forwarding it onto `main` to pick up the design tokens/shell/chart primitives it depended on.
+
+Touched: `AccountsClient`, `CategoriesClient`, `TagsClient`, `PeopleClient`, `GoalsClient`, `LimitsClient`, `RecurringRulesClient`, `CalendarClient`, `WhatHappenedClient` (all restyled onto `.glass-1`/`.surface-card`/`.data-row`/`.field`/`.btn-*`/`.kicker`), plus their route wrappers under `app/(app)/*/page.tsx` normalized onto `.page-header`/`.page-title`/`.page-copy` (the inconsistency flagged back in P1). Also picked up `app/(app)/manage/page.tsx` and `app/(app)/more/page.tsx` per the optional scope note — both got real icons on their link tiles instead of plain text rows. `BackupRestoreClient`/`app/(app)/settings/page.tsx` were already fully on the design system from an earlier session; only a stale "dark-first" copy line on the settings page got corrected to mention the light/dark toggle.
+
+Design judgment calls worth recording:
+- **Goals** — replaced the flat progress bar with `RadialProgress`: a small 44px ring inline in each list row (no label, just the ring, to avoid clutter at that size) and a large 140px ring with percentage + sublabel in the detail panel.
+- **Limits** — this needed a real (not just cosmetic) change: `LimitsClient` had no visibility into transactions at all, so there was nothing to compute a spent-vs-budget ratio from. Added a `transactions` prop (fetched in `limits/page.tsx` via `getTransactions` with a `transaction_tags` join, reusing `TransactionWithTags` from `lib/analysis.ts`) and a small local `spentForLimit` helper that respects each limit's own scope (category/tag/overall) and period (current calendar month, or current week starting Sunday, for `weekly`). Each limit now renders a `RadialProgress` ring that correctly swaps to `--danger` past 100% (verified with a mock 144%-over-budget limit in preview QA).
+- **Calendar** — kept the month-grid concept (not the GitHub-style `HeatmapCalendar` primitive used in Analysis) since a monthly calendar with day numbers is a genuinely different, more useful shape for this screen than a week-column heatmap; instead gave it real month navigation (prev/this-month/next, previously the grid only ever showed the current month with no way to look back) and intensity-scaled day backgrounds (`--danger` tint scaled by that day's spend against the month's max) plus a clearer today ring.
+- **What happened** — added a proper date-nav control bar (prev/next chevrons + native date input, `.glass-1` pill) replacing the old plain form, "Jump to today" link, colored stat tiles (income/expense/transfer each tinted), and per-transaction type icons/colors in the journal list.
+- **Tags / People** — both were still on pre-redesign raw Tailwind (`border-border`, `bg-bg-secondary`, etc., not the glass classes) despite those tokens themselves being theme-safe; fully converted. Added a small curated color-swatch picker (reusing `--chart-1..8`) for both tag colors and person avatar colors instead of a bare hex text field, so users aren't forced to know hex codes for a cosmetic choice — the underlying `color`/`avatar_color` text field is unchanged, this is presentation only.
+- **Accounts** — added a "Total across N accounts" summary tile above the list (sums the same `calculateAccountBalances` already used per-row) and a per-type icon (bank/cash/wallet/credit/other).
+- No functional/data-model changes anywhere except the Limits `transactions` prop threading described above — everything else is a pure visual pass, same mutations/queries as before.
+
+Deferred: didn't touch `QuickSpendSettings.tsx` (used by `manage/page.tsx`) — it wasn't in the explicit component list and reads as reasonably consistent already (token-based, just not using the `.field`/`.btn-*` component classes); worth a follow-up pass if another phase touches manual entry again.
+
+Verified visually across all 10 screens + Manage/More in both themes via the same temporary-preview-route + headless-Chromium workflow as P1-P3 (`app/login/preview/p6/*`, deleted before commit) — mock data for the 7 components that accept props directly, and small preview-only mirror components (also deleted) for `CalendarClient`/`WhatHappenedClient` since those fetch via `useQuery`+Supabase internally with no data props and this environment has no Supabase credentials configured.
+`npm run build`/`lint` pass.
 
 ### P7 — Data model additions ⬜
 Concrete additions TBD when we get here (don't design prematurely). Candidates noted during P3 if analysis needs new columns/tables (e.g. saved analysis views/filters). Additive migrations only, next file is `0006_*.sql`.
@@ -163,7 +179,7 @@ Multi-agent execution started 2026-09-03 per the user's request. Each row is one
 |---|---|---|---|
 | P4 Dashboard | dispatched | _fill in when launched_ | Rebuild `DashboardClient.tsx` on chart primitives |
 | P5 Manual entry UX | dispatched | _fill in when launched_ | Tag wiring first, then restyle |
-| P6 CRUD screens | dispatched | _fill in when launched_ | Visual pass across 10 screens |
+| P6 CRUD screens | done (worktree not yet merged to main) | `worktree-agent-a0717a34abd80656e` | Visual pass across 10 screens + Manage/More; Limits also gained real spent-vs-budget tracking (see P6 notes) |
 
 When an agent finishes: merge its worktree branch, run `npm run build`/`lint` on the merged result yourself (an agent's own green build doesn't guarantee it still builds after merging with other concurrent agents' changes), update the phase's checklist in §4 to ✅ with the same level of detail as P1-P3 above, update this table's status to `merged`, and commit.
 

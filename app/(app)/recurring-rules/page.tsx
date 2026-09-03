@@ -6,10 +6,10 @@ export const dynamic = 'force-dynamic';
 export default async function RecurringRulesPage() {
   const [rules, accounts, categories] = await Promise.all([getRecurringRules(), getAccounts(), getCategories()]);
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold">Recurring rules</h1>
-        <p className="mt-2 max-w-3xl text-sm text-text-secondary">Repeat transactions you expect.</p>
+    <div className="space-y-6 fade-up">
+      <div className="page-header">
+        <h1 className="page-title">Recurring rules</h1>
+        <p className="page-copy">Repeat transactions you expect — rent, subscriptions, salary.</p>
       </div>
       <RecurringRulesClient initialRules={rules} accounts={accounts} categories={categories} />
     </div>
