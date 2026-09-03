@@ -91,9 +91,9 @@ export function Sidebar({ initialCollapsed = false }: { initialCollapsed?: boole
                     layoutId="sidebar-active-pill"
                     className="absolute inset-0 rounded-[--radius-md]"
                     style={{
-                      background: 'linear-gradient(180deg, rgba(52,211,153,0.16), rgba(129,140,248,0.12))',
-                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 10px 24px rgba(0,0,0,0.25)',
-                      border: '1px solid rgba(52,211,153,0.28)',
+                      background: 'var(--active-pill-bg)',
+                      boxShadow: 'inset 0 1px 0 var(--glass-specular), 0 10px 24px var(--glass-shade)',
+                      border: '1px solid var(--active-pill-border)',
                     }}
                     transition={{ type: 'spring', stiffness: 380, damping: 34 }}
                   />

@@ -32,8 +32,8 @@ export function MobileDock() {
                     layoutId="mobile-nav-active-pill"
                     className="absolute inset-0 rounded-full"
                     style={{
-                      background: 'linear-gradient(180deg, rgba(52,211,153,0.2), rgba(129,140,248,0.14))',
-                      border: '1px solid rgba(52,211,153,0.3)',
+                      background: 'var(--active-pill-bg)',
+                      border: '1px solid var(--active-pill-border)',
                     }}
                     transition={{ type: 'spring', stiffness: 380, damping: 34 }}
                   />
@@ -52,10 +52,10 @@ export function MobileDock() {
         className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full lg:hidden"
         style={{
           background: 'linear-gradient(165deg, rgba(255,255,255,0.25), transparent), var(--accent)',
-          boxShadow: '0 14px 32px rgba(52,211,153,0.35), inset 0 1px 0 rgba(255,255,255,0.3)',
+          boxShadow: 'var(--fab-shadow)',
         }}
       >
-        <Plus size={26} strokeWidth={2.5} className="text-[#04120c]" />
+        <Plus size={26} strokeWidth={2.5} className="text-[--on-accent]" />
       </motion.button>
 
       <QuickAddModal isOpen={isQuickAddOpen} onClose={() => setIsQuickAddOpen(false)} />

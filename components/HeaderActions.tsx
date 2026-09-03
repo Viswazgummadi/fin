@@ -5,6 +5,7 @@ import { Search, Zap } from 'lucide-react';
 import { OnlineStatus } from './OnlineStatus';
 import { AuthButtons } from './AuthButtons';
 import { QuickAddModal } from './QuickAddModal';
+import { ThemeToggle } from './ThemeToggle';
 import { COMMAND_PALETTE_OPEN_EVENT } from './CommandPalette';
 
 export function HeaderActions() {
@@ -30,6 +31,7 @@ export function HeaderActions() {
         <Zap size={15} />
         Quick
       </button>
+      <ThemeToggle />
       <div className="hidden lg:block">
         <AuthButtons />
       </div>

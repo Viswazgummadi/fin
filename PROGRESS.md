@@ -1,3 +1,17 @@
+### Session 36d — 2026-09-03 (P1.5: light/dark theming + P3: Analysis rebuild)
+Phase worked on: P1.5 (light/dark theme retrofit, added mid-session on user request) and P3 — Analysis rebuild (flagship, now complete; see `PLAN.md` §4)
+Completed:
+- User asked mid-flight for a light theme + toggle (originally dark-only) and for the remaining phases to run as coordinated subagents. Retrofit the whole design system to support both themes via `[data-theme]` on `<html>`, since everything was already CSS-variable-based — added `ThemeToggle.tsx`, a pre-hydration script in `app/layout.tsx` to avoid a flash of the wrong theme, and a batch of new theme-aware tokens (`--glass-*-bg`, `--on-accent`, `--fab-shadow`, `--active-pill-bg/-border`, `--accent-wash`, ambient-field opacity tokens) after finding several components with hardcoded dark-only `rgba()` values that silently broke in light mode
+- Fully rebuilt `AnalysisClient.tsx` on the P2 chart primitives, backed by new `lib/analysis.ts` (period ranges + like-for-like comparisons, net worth series, cashflow by month, category tree rollup, tag aggregation, essential split, narrative insights, z-score anomaly detection)
+- Found and fixed a real logic bug during visual QA: "this month"/"this year" comparisons were measuring against the *entire* previous period rather than the same elapsed days, which made early-period deltas trivially and misleadingly negative
+- **Important finding for P5:** `transaction_tags` has existed in the schema since migration 0001 but nothing in the app ever lets a user attach a tag to a transaction — tag analysis is built and will populate automatically once that's wired up. This is now P5's first task, ahead of its visual restyle.
+- Verified both themes + the full Analysis page visually via a temporary mock-data preview route (deleted before commit) and headless Chromium, since there's still no browser tool and RLS blocks an unauthenticated real-data check anyway
+- `npm run build`/`lint` pass
+Broken / TODO:
+- Per-category sparklines, custom date ranges, and saved views were deliberately cut from P3's scope for time — noted in `PLAN.md` P3 section as "pick up later if it earns its place," not forgotten
+Next exact step:
+- Dispatching P4 (Dashboard), P5 (manual entry UX — tag wiring first), and P6 (remaining CRUD screens) as separate worktree-isolated subagents per the user's request; see `PLAN.md` §7 (Agent dispatch log) for status before touching any of those phases directly
+
 ### Session 36c — 2026-09-03 (P2: chart primitive library)
 Phase worked on: P2 — Chart primitive library (now complete, see `PLAN.md` §4)
 Completed:

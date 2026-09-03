@@ -148,7 +148,7 @@ export function CommandPalette() {
                         onMouseEnter={() => setActiveIndex(index)}
                         onClick={() => select(entry)}
                         className={`flex w-full items-center gap-3 rounded-[--radius-sm] px-3 py-2.5 text-left text-sm transition-colors ${
-                          isActive ? 'bg-[rgba(52,211,153,0.14)] text-[--text-primary]' : 'text-[--text-secondary]'
+                          isActive ? 'bg-[--accent-wash] text-[--text-primary]' : 'text-[--text-secondary]'
                         }`}
                       >
                         <Icon size={16} className="shrink-0" />

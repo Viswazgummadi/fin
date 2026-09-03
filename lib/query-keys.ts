@@ -7,4 +7,7 @@ export const queryKeys = {
   analysisTransactions: ['analysis-transactions'] as const,
   reviewTransactions: ['review-transactions'] as const,
   limits: ['limits'] as const,
+  goals: ['goals'] as const,
+  peopleLedger: ['people-ledger'] as const,
+  tags: ['tags'] as const,
 };

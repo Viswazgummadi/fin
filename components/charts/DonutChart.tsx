@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { circumference } from '../../lib/charts';
 
-export type DonutSlice = { label: string; value: number; color: string };
+export type DonutSlice = { label: string; value: number; color: string; id?: string };
 
 export function DonutChart({
   slices,

@@ -10,9 +10,9 @@ This plan supersedes the old `plan.md`/`stages.md` (generic AI-drafted feature l
 
 ## 1. Resume Here
 
-**Current phase: P3 — Analysis section rebuild (not started, the flagship phase)**
+**Current phase: P4 — Dashboard rebuild (dispatched to a subagent — check §7 before starting work)**
 
-Next concrete action: rebuild `components/AnalysisClient.tsx` on the new chart primitives from `components/charts/`. Start with the Overview subsection (net worth/cashflow), then work through the P3 build order in §5. The old `AnalysisClient.tsx` (conic-gradient donuts, plain month grid) is still live in production right now — this phase replaces it.
+P0-P3 are done, including the light/dark theme system (added mid-flight, see P1.5) and a full Analysis rebuild. From here, P4/P5/P6 are being run as separate worktree-isolated agents per the user's request for coordinated multi-agent execution — see §7 for status of each before picking up any of them yourself, to avoid duplicating or conflicting with in-flight work.
 
 How to resume in a new session:
 1. Read this file top to bottom (it's short).
@@ -24,7 +24,8 @@ How to resume in a new session:
 
 - **Backend stays Supabase, framework stays Next.js 14 (App Router) + TanStack Query.** It's already hosted, has working auth/RLS, and there's no reason to migrate infra for a single-user app. Effort goes into UI/UX and analysis depth, not backend churn.
 - **Existing data is real and precious.** All schema changes are additive migrations only (new files under `supabase/migrations/`). Never edit or drop existing migrations/tables/columns.
-- **Theme: dark-only, refined "Liquid Glass".** No light mode. One cohesive dark aesthetic, inspired by iOS's frosted/specular glass — depth via layered translucency, blur, soft inner/outer light, not flat cards with a border.
+- **Theme: refined "Liquid Glass," now with both dark and light palettes and a manual toggle.** (Revised 2026-09-03 — originally dark-only, the user asked for a light theme too.) Dark is still the default; a `ThemeToggle` in the header flips `data-theme` on `<html>` and persists to `localStorage`. No system-preference auto-switching — it's an explicit toggle, not `prefers-color-scheme`-driven. See P1.5 below for how this was retrofitted.
+- **Multi-agent execution from P4 onward.** (Added 2026-09-03.) The user asked for coordinated subagents on the remaining phases instead of one linear session. Foundational/cross-cutting work (design tokens, chart primitives, theming) is done directly since it requires holding the whole design system in context; phases with low file overlap (P4 Dashboard, P5 manual entry, P6 CRUD screens) are handed to worktree-isolated agents with tight briefs pointing at this file. Whoever picks this file up next should check §7 (Agent dispatch log) for in-flight or completed agent work before starting anything new.
 - **New dependencies:** `framer-motion` (motion/springs/page transitions), `lucide-react` (icon set, tree-shakeable). Charts are **hand-built SVG components** (`components/charts/*`), not a third-party chart library — full control over the glass look, no bundle bloat, no theming fights.
 - **Git workflow:** commit locally after each completed phase, with a clear message. No pushes unless asked.
 - **Analysis is the flagship section.** It gets built right after the shell + chart primitives exist (P3), ahead of restyling every CRUD screen.
@@ -66,6 +67,19 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 **Note for later phases:** many CRUD pages (`GoalsClient`, `LimitsClient`, `PeopleClient`, `TagsClient`, etc.) still hand-roll their own `<h1 className="text-3xl font-semibold">` page headers instead of using the shared `.page-header`/`.page-title` classes. They still render correctly with the new tokens (the underlying CSS vars are unchanged), just not yet visually consistent with pages that do use `.page-header`. P6 should normalize this.
 
+### P1.5 — Light/dark theme retrofit ✅
+Added mid-flight after P3 was already in progress, when the user asked for both themes with a toggle instead of dark-only. Retrofit, not a rewrite — the whole design system is CSS custom properties, so this was additive:
+- [x] Restructured `globals.css`: theme-independent tokens (radii, motion) stay in plain `:root`; color/surface tokens moved under `:root, :root[data-theme='dark']` (default) and a new `:root[data-theme='light']` block
+- [x] New tokens needed for full theme parity beyond the original palette: `--glass-1/2/3-bg`, `--glass-specular(-strong)`, `--glass-shade`, `--ambient-blob-opacity`, `--ambient-spot-opacity`, `--ambient-grain-opacity`/`-blend`, `--track`, `--on-accent` (text color on accent-filled surfaces — near-black in dark mode since accent is bright, white in light mode since accent is deeper), `--fab-shadow`, `--active-pill-bg`/`-border`, `--accent-wash`
+- [x] Hunted down and replaced every component with hardcoded `rgba(255,255,255,...)` / hardcoded accent-rgb values (`Sidebar`, `MobileDock`, `CommandPalette`, `AnalysisClient`) — these silently broke in light mode otherwise since they didn't reference the themed tokens
+- [x] `components/ThemeToggle.tsx` — sun/moon icon button (animated crossfade), flips `data-theme`, persists to `localStorage` (`fin.theme`), also updates the `<meta name="theme-color">` tag for the browser chrome
+- [x] Pre-hydration theme script in `app/layout.tsx` via `next/script strategy="beforeInteractive"` — reads `localStorage` before paint so a stored light preference doesn't flash dark first
+- [x] Placed the toggle in `HeaderActions` (next to Search/Quick/Logout) — visible on every authenticated screen
+- [x] Verified both themes visually (see P3 verification below — same pass covered both)
+- [x] `npm run build`/`lint` pass
+
+**Note for P4/P5/P6 agents:** the token system means you should almost never need theme-specific code — just use `var(--token-name)` (or the matching Tailwind class like `bg-[--bg-secondary]`, `text-[--text-primary]`) and both themes work automatically. The only time you need to think about theme explicitly is if you introduce a **new** raw color (a hardcoded hex/rgba) instead of an existing token — don't do that; add a token to both theme blocks in `globals.css` instead, the way `--on-accent` etc. were added above.
+
 ### P2 — Chart primitive library ✅
 Hand-built, SVG + framer-motion, styled to the glass system. All live in `components/charts/`, sharing geometry helpers from `lib/charts.ts` (Catmull-Rom path smoothing, point normalization, arc/circumference math, categorical `--chart-1..8` palette, heatmap intensity bucketing).
 - [x] `Sparkline.tsx` — small inline line + optional gradient fill, animated draw-in via `pathLength`
@@ -83,17 +97,33 @@ Hand-built, SVG + framer-motion, styled to the glass system. All live in `compon
 - All chart components are client components (`"use client"`) — fine to use directly from `AnalysisClient`/`DashboardClient` (already client components), but if a *server* component ever needs to render one, don't pass inline functions as props to it from a server component (React will throw "Functions cannot be passed directly to Client Components") — pass primitive data and let the client component define its own formatters, the way `PreviewShowcase` had to during P2's own verification.
 - `DonutChart` renders butt-cap segments when there's more than one slice (rounded caps only for a single-slice ring) — intentional, avoids visual gaps between adjacent segments.
 
-### P3 — Analysis section rebuild (flagship) ⬜
-See §5 for the full feature backlog. Build order: Overview → Categories drill-down → Tags → Calendar heatmap → Comparisons (MoM/YoY) → Narrative insights → People/Goals tie-in.
+### P3 — Analysis section rebuild (flagship) ✅
+`components/AnalysisClient.tsx` fully rebuilt on the P2 chart primitives, backed by new pure-function analysis logic in `lib/analysis.ts` (period ranges + comparisons, net worth series, cashflow by month, category tree aggregation with parent/child rollup, tag aggregation, essential/discretionary split, narrative insight generation, z-score anomaly detection).
 
-### P4 — Dashboard rebuild ⬜
-Rebuild `DashboardClient.tsx` on the new chart primitives + glass system; keep the widget show/hide concept but restyle it.
+Sections, top to bottom: period switcher (This month / Last month / Last 30 / Last 90 / This year / All time) → narrative insight strip → 4 stat tiles with vs-previous deltas → net worth area chart + cashflow bars → categories (donut with click-to-drill-down into subcategories + ranked list with deltas) + essential/discretionary donut → tags leaderboard + unusual-transactions list → daily-spend heatmap (links each day to `/whathappened?date=`) → budgets/goals/people tie-in row (radial progress rings, over-100% budgets swap to danger color).
 
-### P5 — Manual entry UX ⬜
-`QuickAdd`/`QuickAddModal`/`TransactionsClient` (853 lines, biggest component) — tag-first fast entry, command-palette-driven add, keep offline-outbox behavior intact.
+- [x] `lib/analysis.ts` — all the derived-data logic, kept out of the component so it's independently reasoned about/testable
+- [x] Real bug caught and fixed during visual QA: `this_month`/`this_year` were comparing month/year-to-date against the **entire** previous period, which made every delta trivially and misleadingly negative early in a period (3 days into September vs. all of August always looks "down ~90%"). Fixed to compare against the same number of elapsed days in the previous period.
+- [x] **Important product-scope finding, not a code bug:** `transaction_tags` exists in the schema (migration 0001) with working RLS, but nothing in the app has ever let a user attach a tag to a transaction — `TagsClient` only manages tag *definitions*. Tag analysis here is built and will work correctly the moment tags get attached to transactions, but until then it shows an empty state ("No transactions have tags attached yet..."). **This is now the first thing P5 must fix** — wire a tag multi-select into the transaction add/edit form in `TransactionsClient.tsx` (not into `QuickAdd`, which is deliberately minimal/fast). Sequencing this way (read-side now, write-side in P5) avoided rework: the analysis query already does the `transaction_tags(tag_id, tags(id,name,color))` join, nothing here needs to change once P5 ships.
+- [x] Verified visually (mock dataset, both themes, period switching, drill-down click) via the same temporary-preview-route + headless-Chromium workflow as P1/P2 — see P1.5 for why this pass covered theming too
+- [x] `npm run build`/`lint` pass
 
-### P6 — Remaining screens visual pass ⬜
-Accounts, Categories, Tags, People, Goals, Limits, Recurring rules, Calendar, What Happened, Settings — bring onto the new design system/primitives. Mostly mechanical once P1-P2 exist.
+**Deferred/cut from the original backlog (§5) to keep this phase shippable — pick up later if it earns its place:**
+- Per-category trend sparklines in the category list (backlog mentioned this; the `Sparkline` primitive exists and works, just not wired in here — would need a daily/weekly series per category, cut for time)
+- Custom date-range picker (only presets for now)
+- Saved views/segments (still needs a new table — P7 territory anyway)
+- A dedicated anomalies "page" — currently just a top-3 list, which is enough signal without over-building a rarely-used surface
+
+### P4 — Dashboard rebuild 🟨 (dispatched — see §7)
+Rebuild `DashboardClient.tsx` on the new chart primitives + glass system; keep the widget show/hide concept but restyle it. Touches: `components/DashboardClient.tsx`, `lib/dashboard.ts`. Low overlap with P5/P6.
+
+### P5 — Manual entry UX 🟨 (dispatched — see §7)
+Two things, in this order:
+1. **Wire tags into transaction entry** (see P3's finding above — this is now the priority item, not optional polish). Add a tag multi-select to the add/edit transaction form in `TransactionsClient.tsx`, save to `transaction_tags` on submit, load existing tags when editing. Leave `QuickAdd.tsx` alone (deliberately minimal/fast, no tags there).
+2. Restyle `QuickAdd`/`QuickAddModal`/`TransactionsClient` (853 lines, the biggest component) onto the glass design system. Keep the offline-outbox behavior in `lib/offline-sync.ts` intact — don't touch that mechanism, only the UI around it.
+
+### P6 — Remaining screens visual pass 🟨 (dispatched — see §7)
+Accounts, Categories, Tags, People, Goals, Limits, Recurring rules, Calendar, What Happened, Settings — bring onto the new design system/primitives (`.glass-1`/`.surface-card`, `.page-header`/`.page-title`, chart primitives where relevant e.g. Goals progress rings). Mostly mechanical once P1-P2 exist. Note from P1: several of these already hand-roll `<h1 className="text-3xl font-semibold">` instead of `.page-header` — normalize that here.
 
 ### P7 — Data model additions ⬜
 Concrete additions TBD when we get here (don't design prematurely). Candidates noted during P3 if analysis needs new columns/tables (e.g. saved analysis views/filters). Additive migrations only, next file is `0006_*.sql`.
@@ -125,7 +155,19 @@ Verify on Vercel (`fin-psi-umber.vercel.app`, Supabase project ref `ifxgrybtyeqi
 - No third-party chart library, no CSS framework beyond existing Tailwind + hand-rolled tokens.
 - No backend rewrite (Supabase stays).
 
-## 7. Reference facts
+## 7. Agent dispatch log
+
+Multi-agent execution started 2026-09-03 per the user's request. Each row is one dispatched agent; update this table (don't just append prose) whenever you dispatch, resume, or land one, so the next session — human or agent — knows what's in flight without guessing from git log alone.
+
+| Phase | Status | Branch / worktree | Notes |
+|---|---|---|---|
+| P4 Dashboard | dispatched | _fill in when launched_ | Rebuild `DashboardClient.tsx` on chart primitives |
+| P5 Manual entry UX | dispatched | _fill in when launched_ | Tag wiring first, then restyle |
+| P6 CRUD screens | dispatched | _fill in when launched_ | Visual pass across 10 screens |
+
+When an agent finishes: merge its worktree branch, run `npm run build`/`lint` on the merged result yourself (an agent's own green build doesn't guarantee it still builds after merging with other concurrent agents' changes), update the phase's checklist in §4 to ✅ with the same level of detail as P1-P3 above, update this table's status to `merged`, and commit.
+
+## 8. Reference facts
 
 - Supabase project ref: `ifxgrybtyeqikxwkucpp`
 - Vercel app URL: `https://fin-psi-umber.vercel.app/`
