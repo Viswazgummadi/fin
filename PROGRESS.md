@@ -1,3 +1,15 @@
+### Session 36f — 2026-09-03 (post-merge integration check, coordinating session)
+Phase worked on: none new — a final cross-phase visual QA pass after merging P4/P5/P6, since each agent only verified its own phase in isolation
+Completed:
+- Merged all three dispatched agents (P4, P5, P6) into `main` one at a time, resolving `PLAN.md`/`PROGRESS.md` conflicts by combining (all three touched the §7 dispatch table and appended their own "Session 36e" entry); `app/globals.css` merged cleanly with no conflicts. Re-ran `npm run build`/`lint` after each merge, not just once at the end.
+- Beyond that, ran one more integration pass across the fully-merged tree: built a small reusable mock-Supabase query builder (`createMockSupabase`, temporary, since deleted) general enough to drive `DashboardClient`, `TransactionsClient`, and `GoalsClient` together in one preview page with realistic linked data (transactions with real `transaction_tags` associations, limits, goals, recurring rules) — more thorough than any single agent's own mock, specifically to catch cross-phase visual/integration issues none of them could see alone.
+- Confirmed: Dashboard's new widgets (net worth, spending trend, budget rings, upcoming bills) match Analysis's quality bar; Transactions' tag chips render correctly end-to-end from the manual-entry form through to each row; Goals' `RadialProgress` rings are consistent with Dashboard/Limits' use of the same primitive; both themes hold up across all three with no visual regressions or clashes introduced by merging three parallel agents' work.
+- Cleaned up all scaffolding (preview route, mock files, the temporary shim in `utils/supabase/client.ts`) — `git status`/`git diff --stat` confirmed the tree matches the last commit exactly before moving on.
+Broken / TODO:
+- Nothing found. This was a verification pass, not a build phase.
+Next exact step:
+- P0-P6 are done and merged. Next is P7 (data model additions, none concretely scoped) or P8 (polish pass) — or whatever the user asks for next; see `PLAN.md` §1.
+
 ### Session 36e — 2026-09-03 (P6: remaining CRUD screens visual pass, worktree agent)
 Phase worked on: P6 — bring the remaining CRUD screens onto the liquid-glass design system (now complete; see `PLAN.md` §4)
 Completed:
