@@ -1,7 +1,20 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import { PWARegister } from '../components/PWARegister';
 import { Providers } from '../components/Providers';
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Calm Ledger',
@@ -12,13 +25,17 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#0f0f10',
+  themeColor: '#050507',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body>
+        <div className="ambient-field" aria-hidden="true">
+          <div className="ambient-field-spot" />
+          <div className="ambient-field-grain" />
+        </div>
         <Providers>
           <PWARegister />
           {children}

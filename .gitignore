@@ -3,4 +3,5 @@ node_modules
 .env.local
 creds.txt
 cmds.txt
+tsconfig.tsbuildinfo
 

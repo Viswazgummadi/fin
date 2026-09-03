@@ -10,9 +10,9 @@ This plan supersedes the old `plan.md`/`stages.md` (generic AI-drafted feature l
 
 ## 1. Resume Here
 
-**Current phase: P1 — Shell rebuild (in progress)**
+**Current phase: P2 — Chart primitive library (not started)**
 
-Next concrete action: see the "Status" line at the top of the P1 section below.
+Next concrete action: build `components/charts/Sparkline.tsx` first (simplest, reused everywhere), then `AreaChart`, `DonutChart`, `BarChart`, `HeatmapCalendar`, `RadialProgress` — see P2 checklist below.
 
 How to resume in a new session:
 1. Read this file top to bottom (it's short).
@@ -49,16 +49,22 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 - [x] Fold `stages.md` facts in here, retire it
 - [x] Decisions log established
 
-### P1 — Design tokens + shell rebuild 🟨
-Status: install deps → rebuild `globals.css` tokens → rebuild `AppShell`/`Sidebar`/`HeaderActions` with real icons, glass, motion → command palette skeleton.
-- [ ] Add `framer-motion`, `lucide-react` to `package.json`
-- [ ] Rebuild design tokens in `globals.css`: refined dark palette, layered glass surfaces (specular edge + blur + depth shadow), motion easing tokens, radii scale
-- [ ] Load a real variable font via `next/font` (currently `'Inter'` is referenced by name only, no actual font loaded)
-- [ ] Rebuild `Sidebar.tsx` — icon-based nav (lucide icons, not letter initials), animated active-pill (`layoutId`), collapse animation
-- [ ] Rebuild `AppShell.tsx` header — glass header, refined quick-add entry point
-- [ ] Add page-transition wrapper (`AnimatePresence` on route change)
-- [ ] Command palette skeleton (Cmd+K) — navigation only for now, actions added later phases
-- [ ] `npm run build` passes
+### P1 — Design tokens + shell rebuild ✅
+- [x] Added `framer-motion`, `lucide-react`
+- [x] Moved every authenticated route into an `app/(app)/` route group with a single shared `layout.tsx` that mounts `AppShell` once — previously every `page.tsx` wrapped itself in `<AppShell>`, which meant the whole shell (sidebar, header, sync manager) remounted on every navigation. Now it persists, which is also what makes route transitions animate instead of hard-cutting.
+- [x] Rebuilt design tokens in `globals.css`: elevation scale (`--bg-0`..`--bg-3`), categorical chart palette (`--chart-1`..`--chart-8`), motion tokens, radii scale, a real three-tier glass system (`.glass-1`/`.surface-card`, `.glass-2`/`.glass-nav`, `.glass-3`)
+- [x] Added `.ambient-field` — fixed drifting gradient blobs behind the glass. **Gotcha hit and fixed:** an opaque `background` on `html`/`body` gets promoted by the browser to the canvas paint layer, which sits behind *everything* including fixed, negative-z-index descendants regardless of z-index — so the ambient blobs were invisible until that background was removed from `html`/`body` and left only on `.ambient-field` itself. If backgrounds look flat/dead in a later phase, check for this again.
+- [x] Loaded real fonts via `next/font/google` (Inter + JetBrains Mono) — previously `'Inter'` was referenced by name with nothing actually loading it
+- [x] Rebuilt `Sidebar.tsx` — lucide icons instead of letter initials, animated active-pill via `layoutId`, spring collapse animation
+- [x] Rebuilt `AppShell.tsx`/`HeaderActions.tsx` — floating glass header, simplified actions (online status, search/command-palette trigger, quick-add, auth)
+- [x] New `MobileDock.tsx` — floating glass bottom dock (icon nav + active pill) replacing the old hamburger slide-out drawer, plus a separate elevated FAB for quick-add
+- [x] New `CommandPalette.tsx` — Cmd+K modal, fuzzy-ish substring filter over `lib/nav.ts`'s `ALL_DESTINATIONS`, arrow-key navigation, a "Quick spend" action; also openable from the header search button via a custom event
+- [x] New `PageTransition.tsx` — `AnimatePresence` fade/slide keyed by pathname, works now that the shell persists across nav
+- [x] Restyled `login`/`LoginForm` to match (glass card, `.field`/`.btn-primary`)
+- [x] Verified visually: installed a headless Chromium (Playwright) locally since no browser tool was available, screenshotted via a temporary `/login/preview` route (middleware treats `/login/*` as public), iterated on the glass/ambient contrast until it actually read as glass, then deleted the temp route before committing
+- [x] `npm run build` and `npm run lint` both pass
+
+**Note for later phases:** many CRUD pages (`GoalsClient`, `LimitsClient`, `PeopleClient`, `TagsClient`, etc.) still hand-roll their own `<h1 className="text-3xl font-semibold">` page headers instead of using the shared `.page-header`/`.page-title` classes. They still render correctly with the new tokens (the underlying CSS vars are unchanged), just not yet visually consistent with pages that do use `.page-header`. P6 should normalize this.
 
 ### P2 — Chart primitive library ⬜
 Hand-built, SVG + framer-motion, styled to the glass system. Each is a real component with props, not one-off inline markup.

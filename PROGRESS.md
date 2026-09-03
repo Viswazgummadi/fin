@@ -1,3 +1,21 @@
+### Session 36b — 2026-09-03 (P1: shell rebuild)
+Phase worked on: P1 — Design tokens + shell rebuild (now complete, see `PLAN.md` §4)
+Completed:
+- Added `framer-motion` + `lucide-react`
+- Moved all authenticated routes into `app/(app)/` with one shared layout mounting `AppShell` once, instead of every page wrapping itself in `<AppShell>` (which was remounting the whole shell on every navigation)
+- Full glass design token rebuild in `globals.css` (elevation scale, chart palette, motion tokens, three-tier `.glass-1/2/3` system) plus an animated `.ambient-field` background
+- Hit and fixed a real bug: opaque `background` on `html`/`body` gets promoted to the canvas paint layer by the browser, which renders behind fixed/negative-z-index descendants no matter their z-index — this made the ambient glow invisible until the background was moved onto `.ambient-field` alone
+- Loaded real fonts via `next/font` (Inter, JetBrains Mono) — previously only referenced by name with nothing loading them
+- Rebuilt `Sidebar`, `AppShell`, `HeaderActions`; added `MobileDock` (floating glass bottom nav + FAB, replacing the old hamburger drawer), `CommandPalette` (Cmd+K), `PageTransition` (route fade/slide, works now that the shell persists)
+- Restyled the login screen to match
+- No browser tool was available this session, so installed a local headless Chromium via Playwright and screenshotted a temporary `/login/preview` route (deleted before commit) to actually verify the glass effect rendered — first pass looked completely flat until the canvas-background bug above was found and fixed
+- `npm run build` and `npm run lint` pass
+Broken / TODO:
+- Several CRUD pages still use ad-hoc `<h1>` headers instead of `.page-header` — cosmetic inconsistency, deliberately deferred to P6
+- Analysis/Dashboard still render their old inline donut/bar markup — P2/P3/P4 replace those with the new chart primitives
+Next exact step:
+- Start P2: build `components/charts/Sparkline.tsx`, then `AreaChart`, `DonutChart`, `BarChart`, `HeatmapCalendar`, `RadialProgress`
+
 ### Session 36 — 2026-09-03 (Full redesign kickoff)
 Phase worked on: P0 — Foundation & docs (see `PLAN.md`, now the canonical resume file, superseding this file's old planning role and the retired `plan.md`/`stages.md`)
 Completed:
