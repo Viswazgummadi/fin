@@ -1,15 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
-import { DashboardWidget, getUserDashboardWidgets, normalizeDashboardWidgets, saveUserDashboardWidgets } from '../lib/dashboard';
+import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, RotateCcw } from 'lucide-react';
+import {
+  DashboardWidget,
+  WIDGET_LABELS,
+  getUserDashboardWidgets,
+  normalizeDashboardWidgets,
+  saveUserDashboardWidgets,
+} from '../lib/dashboard';
 
-export function WidgetManager({ 
-  children,
-  onWidgetsChange 
-}: { 
-  children: React.ReactNode | ((visibleWidgets: DashboardWidget[], widgets: DashboardWidget[], setWidgets: (widgets: DashboardWidget[]) => void) => React.ReactNode);
-  onWidgetsChange?: (widgets: DashboardWidget[]) => void;
-}) {
+type WidgetManagerContext = {
+  widgets: DashboardWidget[];
+  visibleWidgets: DashboardWidget[];
+  isEditing: boolean;
+  toggleEditMode: () => void;
+  /** Pre-rendered, already-styled editor panel — place it wherever it fits your layout (e.g. under the page header). */
+  editorPanel: React.ReactNode;
+};
+
+export function WidgetManager({ children }: { children: (ctx: WidgetManagerContext) => React.ReactNode }) {
   const [widgets, setWidgets] = useState<DashboardWidget[]>(() => normalizeDashboardWidgets(getUserDashboardWidgets()));
   const [isEditing, setIsEditing] = useState(false);
 
@@ -19,8 +29,7 @@ export function WidgetManager({
 
   useEffect(() => {
     saveUserDashboardWidgets(widgets);
-    onWidgetsChange?.(widgets);
-  }, [widgets, onWidgetsChange]);
+  }, [widgets]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -35,96 +44,79 @@ export function WidgetManager({
   const visibleWidgets = useMemo(() => widgets.filter((widget) => widget.visible), [widgets]);
 
   const toggleWidget = (widgetId: string) => {
-    setWidgets((current) =>
-      current.map((widget) => (widget.id === widgetId ? { ...widget, visible: !widget.visible } : widget))
-    );
+    setWidgets((current) => current.map((widget) => (widget.id === widgetId ? { ...widget, visible: !widget.visible } : widget)));
   };
 
   const moveWidget = (widgetId: string, direction: 'up' | 'down') => {
     const index = widgets.findIndex((w) => w.id === widgetId);
     if (index === -1) return;
 
-    const newWidgets = [...widgets];
+    const nextWidgets = [...widgets];
     if (direction === 'up' && index > 0) {
-      [newWidgets[index], newWidgets[index - 1]] = [newWidgets[index - 1], newWidgets[index]];
-    } else if (direction === 'down' && index < newWidgets.length - 1) {
-      [newWidgets[index], newWidgets[index + 1]] = [newWidgets[index + 1], newWidgets[index]];
+      [nextWidgets[index], nextWidgets[index - 1]] = [nextWidgets[index - 1], nextWidgets[index]];
+    } else if (direction === 'down' && index < nextWidgets.length - 1) {
+      [nextWidgets[index], nextWidgets[index + 1]] = [nextWidgets[index + 1], nextWidgets[index]];
     }
 
-    setWidgets(
-      newWidgets.map((widget, position) => ({
-        ...widget,
-        position,
-      }))
-    );
+    setWidgets(nextWidgets.map((widget, position) => ({ ...widget, position })));
   };
 
-  const toggleEditMode = () => {
-    setIsEditing(!isEditing);
-  };
+  const resetWidgets = () => setWidgets(normalizeDashboardWidgets(null));
+  const toggleEditMode = () => setIsEditing((current) => !current);
 
-  const resetWidgets = () => {
-    setWidgets(normalizeDashboardWidgets(null));
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold">Dashboard</h2>
-        <button 
-          onClick={toggleEditMode}
-          className="px-3 py-1 text-sm rounded-md border border-[--border] hover:bg-[--bg-secondary]"
-        >
-          {isEditing ? 'Done' : 'Edit Widgets'}
+  const editorPanel = isEditing ? (
+    <div className="glass-1 fade-up space-y-3 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="font-semibold">Customize dashboard</div>
+          <p className="text-xs text-[--text-secondary]">Reorder and hide sections — changes save instantly, only on this device.</p>
+        </div>
+        <button onClick={resetWidgets} type="button" className="btn-ghost inline-flex shrink-0 items-center gap-1.5 text-xs">
+          <RotateCcw size={13} /> Reset
         </button>
       </div>
-      
-      {isEditing && (
-        <div className="border border-[--border] rounded-lg p-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h3 className="font-medium">Widget Management</h3>
-            <button onClick={resetWidgets} className="text-sm text-[--text-secondary]">
-              Reset
-            </button>
+      <div className="space-y-1.5">
+        {widgets.map((widget, index) => (
+          <div key={widget.id} className="data-row flex items-center justify-between gap-3 px-3 py-2.5">
+            <div className="flex min-w-0 items-center gap-2 text-sm">
+              <GripVertical size={14} className="shrink-0 text-[--text-muted]" />
+              <span className={`truncate ${widget.visible ? 'text-[--text-primary]' : 'text-[--text-muted]'}`}>
+                {WIDGET_LABELS[widget.type]}
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => moveWidget(widget.id, 'up')}
+                disabled={index === 0}
+                aria-label={`Move ${WIDGET_LABELS[widget.type]} up`}
+                className="btn-ghost grid h-7 w-7 place-items-center rounded-full p-0 disabled:opacity-30"
+              >
+                <ChevronUp size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => moveWidget(widget.id, 'down')}
+                disabled={index === widgets.length - 1}
+                aria-label={`Move ${WIDGET_LABELS[widget.type]} down`}
+                className="btn-ghost grid h-7 w-7 place-items-center rounded-full p-0 disabled:opacity-30"
+              >
+                <ChevronDown size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleWidget(widget.id)}
+                aria-label={widget.visible ? `Hide ${WIDGET_LABELS[widget.type]}` : `Show ${WIDGET_LABELS[widget.type]}`}
+                className="btn-ghost grid h-7 w-7 place-items-center rounded-full p-0"
+              >
+                {widget.visible ? <Eye size={14} className="text-[--accent]" /> : <EyeOff size={14} />}
+              </button>
+            </div>
           </div>
-          <p className="mb-3 text-sm text-[--text-secondary]">Reorder and hide dashboard sections. Changes save instantly.</p>
-          <div className="space-y-2">
-            {widgets.map((widget, index) => (
-              <div key={widget.id} className="flex items-center justify-between p-2 border-b border-[--border]">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">{widget.type.replace('-', ' ')}</span>
-                  <button 
-                    onClick={() => moveWidget(widget.id, 'up')}
-                    disabled={index === 0}
-                    className="text-xs px-2 py-1 rounded border border-[--border] disabled:opacity-50"
-                  >
-                    ↑
-                  </button>
-                  <button 
-                    onClick={() => moveWidget(widget.id, 'down')}
-                    disabled={index === widgets.length - 1}
-                    className="text-xs px-2 py-1 rounded border border-[--border] disabled:opacity-50"
-                  >
-                    ↓
-                  </button>
-                </div>
-                <button 
-                  onClick={() => toggleWidget(widget.id)}
-                  className={`px-3 py-1 text-sm rounded ${
-                    widget.visible 
-                      ? 'bg-green-500/10 text-green-500' 
-                      : 'bg-gray-500/10 text-gray-500'
-                  }`}
-                >
-                  {widget.visible ? 'Visible' : 'Hidden'}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      
-      {typeof children === 'function' ? children(visibleWidgets, widgets, setWidgets) : children}
+        ))}
+      </div>
     </div>
-  );
+  ) : null;
+
+  return <>{children({ widgets, visibleWidgets, isEditing, toggleEditMode, editorPanel })}</>;
 }

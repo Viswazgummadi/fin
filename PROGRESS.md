@@ -1,3 +1,20 @@
+### Session 36e — 2026-09-03 (P4: Dashboard rebuild, run as the P4 subagent)
+Phase worked on: P4 — Dashboard rebuild (now complete, see `PLAN.md` §4/§7)
+Completed:
+- Picked up the P4 worktree, found it was branched before P1-P3 landed on `main` (stale at commit `0b74632`, missing `PLAN.md`, the glass design system, and the chart primitives entirely) — rebased the worktree branch onto `main` first to get all of that before starting any Dashboard work
+- Fully rebuilt `components/DashboardClient.tsx` on the P2 chart primitives (`AreaChart`, `DonutChart`, `RadialProgress`, `Sparkline`) and the `AnalysisClient.tsx` idioms (local `Panel`/`StatTile`/`EmptyState`/`InlineError`/skeleton), replacing the old hand-rolled div-bar "spending trend" and plain list rows
+- Added two new widget types (`net-worth`, `upcoming-bills`) alongside the existing five, all independently show/hide-able through the restyled `WidgetManager.tsx`
+- Restyled `components/WidgetManager.tsx` and reshaped its API: it no longer renders its own duplicate page header, instead exposing `{ widgets, visibleWidgets, isEditing, toggleEditMode, editorPanel }` via its render prop so `DashboardClient` can place the customize toggle/panel correctly in its own header
+- **Found and fixed a real pre-existing bug** in `lib/dashboard.ts`: `normalizeDashboardWidgets` never actually sorted by the `.position` field it was given, so widget reordering looked like it worked in-session but silently reverted to default order on every reload. Fixed and verified via a live interaction test (headless Chromium: hide a widget, reorder another, reload, confirm both persisted)
+- Made the budget-summary widget period-aware (weekly limits measured against the trailing 7 days, monthly against the calendar month) — the old code compared every limit against the whole month regardless of its period, which inflates weekly limits' ratios; caught this from a startling 617% ring in visual QA
+- Verified both themes, the editor panel, and live widget reordering/persistence via the standard temporary-preview-route (`/login/preview`, deleted before commit) + headless Chromium workflow, with a deterministic-PRNG mock dataset (also deleted before commit)
+- `npm run build`/`lint` pass on this worktree's branch alone
+Broken / TODO:
+- Not yet merged into `main` — the coordinating session handles that, and should re-run `npm run build`/`lint` after merging since P5/P6 are touching other files concurrently
+- Drag-and-drop widget reordering, a people/net-owed dashboard widget, and period-aware category breakdowns were considered and deliberately deferred — see `PLAN.md` P4 section for reasoning
+Next exact step:
+- Coordinating session: merge this worktree's branch into `main`, re-run `npm run build`/`lint` on the merged tree, update `PLAN.md` §7's P4 row to `merged`
+
 ### Session 36d — 2026-09-03 (P1.5: light/dark theming + P3: Analysis rebuild)
 Phase worked on: P1.5 (light/dark theme retrofit, added mid-session on user request) and P3 — Analysis rebuild (flagship, now complete; see `PLAN.md` §4)
 Completed:
