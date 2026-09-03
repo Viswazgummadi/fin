@@ -1,3 +1,15 @@
+### Session 36 — 2026-09-03 (Full redesign kickoff)
+Phase worked on: P0 — Foundation & docs (see `PLAN.md`, now the canonical resume file, superseding this file's old planning role and the retired `plan.md`/`stages.md`)
+Completed:
+- Full repo audit: read every source file to understand current architecture, data model, and UI before touching anything
+- Decided the direction with the user: full visual + UX + analysis rebuild ("Liquid Glass" dark-only theme, iOS-inspired), keep Supabase/Next.js/TanStack Query backend as-is, additive-only schema changes, hand-built SVG charts instead of a chart library, commit after each phase
+- Wrote `PLAN.md` as the single canonical resumable doc: decisions log, architecture snapshot, phase roadmap (P0-P9), and the full analysis-section feature backlog
+- Retired `plan.md` (generic AI-drafted feature list) and `stages.md` (bootstrap infra plan, now historical) — their still-relevant facts (Supabase project ref, Vercel URL) moved into `PLAN.md` §7
+Broken / TODO:
+- Nothing broken; this was a planning-only session so far
+Next exact step:
+- Start P1: add `framer-motion` + `lucide-react`, rebuild `globals.css` design tokens, rebuild `Sidebar`/`AppShell`/`HeaderActions` with real icons + glass + motion
+
 ### Session 35 — 2025-08-15 (Sidebar persistence + collapsible transaction filters)
 Phase worked on: UX polish follow-up
 Completed:
