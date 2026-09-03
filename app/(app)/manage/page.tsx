@@ -1,7 +1,7 @@
 import { QuickSpendSettings } from '../../../components/QuickSpendSettings';
 import { getAccounts } from '../../../lib/data';
 import Link from 'next/link';
-import { Wallet, Tags, Tag, Users, Repeat, Target, ShieldAlert, type LucideIcon } from 'lucide-react';
+import { Wallet, Tags, Tag, Users, Repeat, Target, ShieldAlert, CalendarDays, type LucideIcon } from 'lucide-react';
 
 const manageLinks: [string, string, LucideIcon][] = [
   ['Accounts', '/accounts', Wallet],
@@ -11,6 +11,7 @@ const manageLinks: [string, string, LucideIcon][] = [
   ['Recurring Rules', '/recurring-rules', Repeat],
   ['Goals', '/goals', Target],
   ['Limits', '/limits', ShieldAlert],
+  ['Calendar', '/calendar', CalendarDays],
 ];
 
 export const dynamic = 'force-dynamic';

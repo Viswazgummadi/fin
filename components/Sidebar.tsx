@@ -41,21 +41,24 @@ export function Sidebar({ initialCollapsed = false }: { initialCollapsed?: boole
   };
 
   // The spacer (reserves layout space, since the panel itself is `fixed`) and the panel
-  // share one spring config so they move in perfect lockstep — previously the spacer used
-  // a plain CSS width transition while the panel used framer-motion's `layout` prop *plus*
-  // a directly-set inline width, two unsynchronized mechanisms fighting each other, which is
-  // what read as a janky/"immature" collapse animation.
-  const sidebarTransition = { type: 'spring' as const, stiffness: 300, damping: 30 };
+  // move on one shared duration+easing curve so they stay in lockstep — but the spacer
+  // MUST stay a plain element, not a motion/transform-bearing one: a `position: fixed`
+  // descendant of any ancestor with a `transform` (which framer-motion sets, even for a
+  // motion.div only animating `width`) stops being fixed to the *viewport* and becomes
+  // fixed to that transformed ancestor instead. That regression is exactly what made the
+  // sidebar scroll away with the page instead of floating — the panel must have no
+  // transformed ancestor between it and the viewport, so the spacer is CSS-only here.
+  const SIDEBAR_DURATION = 320;
+  const SIDEBAR_EASE = [0.16, 1, 0.3, 1] as const;
 
   return (
-    <motion.div
+    <div
       className="hidden shrink-0 lg:block"
-      animate={{ width: collapsed ? 96 : 288 }}
-      transition={sidebarTransition}
+      style={{ width: collapsed ? 96 : 288, transition: `width ${SIDEBAR_DURATION}ms cubic-bezier(${SIDEBAR_EASE.join(',')})` }}
     >
       <motion.aside
         animate={{ width: collapsed ? 64 : 256 }}
-        transition={sidebarTransition}
+        transition={{ duration: SIDEBAR_DURATION / 1000, ease: SIDEBAR_EASE }}
         className="glass-nav fixed bottom-4 left-4 top-4 z-40 flex flex-col overflow-hidden p-3"
       >
         <div className={`mb-5 flex shrink-0 ${collapsed ? 'justify-center' : 'items-start justify-between'} gap-2`}>
@@ -128,6 +131,6 @@ export function Sidebar({ initialCollapsed = false }: { initialCollapsed?: boole
           })}
         </nav>
       </motion.aside>
-    </motion.div>
+    </div>
   );
 }

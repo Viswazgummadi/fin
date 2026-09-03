@@ -11,6 +11,8 @@ export default async function AccountsPage() {
       title="Accounts"
       description="Bank, cash, wallet, credit, and other accounts with opening balances, balances, edit, and archive support."
       rows={[]}
+      backHref="/manage"
+      backLabel="Manage"
     >
       <AccountsClient initialAccounts={accounts} transactions={transactions} />
     </CrudPage>

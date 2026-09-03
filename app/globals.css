@@ -374,9 +374,16 @@ a:focus-visible {
     var(--shadow-soft);
 }
 
+/* No `position` here on purpose — this class gets combined with Tailwind's `fixed` on
+   the sidebar (Sidebar.tsx), and a plain CSS rule declared after `@tailwind utilities`
+   beats a utility class of equal specificity by source order, regardless of the HTML
+   class order. `position: relative` here silently downgraded the sidebar from `fixed`
+   to `relative`, so it scrolled away with the page instead of floating — found via a
+   user report and confirmed with computed-style inspection. Neither current consumer
+   (this and the header) needs a position value from this class; if a future one does,
+   set it as a Tailwind utility on that specific element instead of adding it back here. */
 .glass-2,
 .glass-nav {
-  position: relative;
   border: 1px solid var(--hairline-strong);
   background: var(--glass-2-bg);
   backdrop-filter: blur(32px) saturate(180%);

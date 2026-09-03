@@ -8,6 +8,7 @@ import type { Transaction } from '../lib/types';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 import { buildMonthGrid, formatMoney, summarizeDailySpend, toDateKey } from '../lib/insights';
 import { queryKeys } from '../lib/query-keys';
+import { BackLink } from './BackLink';
 
 const REVIEW_TRANSACTION_SELECT = 'id,type,amount,category_id,note,occurred_at,is_planned,deleted_at';
 const EMPTY_TRANSACTIONS: Transaction[] = [];
@@ -61,6 +62,7 @@ export function CalendarClient() {
     <div className="space-y-6 fade-up">
       <div className="page-header flex flex-wrap items-end justify-between gap-4">
         <div>
+          <BackLink href="/manage" label="Manage" />
           <h1 className="page-title">Calendar</h1>
           <p className="page-copy">Daily spend heatmap — jump into any day&apos;s journal.</p>
         </div>

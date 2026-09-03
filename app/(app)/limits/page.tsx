@@ -1,6 +1,7 @@
 import { LimitsClient } from '../../../components/LimitsClient';
 import { getCategories, getLimits, getTags, getTransactions } from '../../../lib/data';
 import type { TransactionWithTags } from '../../../lib/analysis';
+import { BackLink } from '../../../components/BackLink';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,7 @@ export default async function LimitsPage() {
   return (
     <div className="space-y-6 fade-up">
       <div className="page-header">
+        <BackLink href="/manage" label="Manage" />
         <h1 className="page-title">Limits</h1>
         <p className="page-copy">Spending caps by category, tag, or overall — tracked against the current period.</p>
       </div>

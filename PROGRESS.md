@@ -1,3 +1,17 @@
+### Session 36h — 2026-09-03 (P6.6: second real-world feedback pass)
+Phase worked on: P6.6 — second real-world feedback pass (now complete; see `PLAN.md` §4)
+Completed:
+- User kept testing and sent three more things: sidebar should be "floating... isolated from the scroll" (implying it currently wasn't), Quick Spend button dimensions in Manage look off, and no way back to Manage from a sub-page like People on desktop (phone back button covers it, laptop doesn't have one).
+- **Sidebar floating fix — real bug, confirmed empirically, not assumed.** First hypothesis was wrong: thought the P6.5 animation-sync change (wrapping the spacer in `motion.div`) might have given the sidebar a transformed ancestor, which breaks `position: fixed` per the CSS spec. Checked via `getComputedStyle`/ancestor-chain inspection in a real browser — no transform anywhere, that wasn't it. Actual cause: `.glass-2, .glass-nav { position: relative; ... }` in `globals.css`, declared after `@tailwind utilities`, beats Tailwind's `.fixed` utility class at equal specificity by source order — this has been silently true since P1, unrelated to the P6.5 change. Fixed by removing `position: relative` from that shared rule after confirming (via grep) no consumer needs it. Verified with a real scroll test: identical `getBoundingClientRect().top` before/after scrolling 3000px, computed `position: fixed`.
+- Rebuilt `QuickSpendSettings.tsx` (Manage → Quick spend) onto the design system — this is the exact component P6 flagged as deferred and "reasonably consistent already," which on closer look it wasn't. Real issue: two stacked full-width text buttons crammed into a 90px column per row, breaking row-height consistency against the other cells. Replaced with two inline 40×40 icon buttons.
+- Added `components/BackLink.tsx` and wired it into all 7 Manage sub-pages (`CrudPage` got optional `backHref`/`backLabel` props for Accounts/Categories; the other five render it directly).
+- While checking navigation "properly" as asked: found `/calendar` had zero links anywhere in the UI (Cmd+K only) and `/more` had zero inbound links at all (fully orphaned, pre-redesign leftover). Added a Calendar tile + BackLink; deleted `app/(app)/more/` after confirming via grep nothing referenced it.
+- Re-verified: build/lint/typecheck clean, `/more` gone from the build's route list, visually confirmed the quick-spend rows and a back link via the temporary-preview-route pattern.
+Broken / TODO:
+- Nothing known broken.
+Next exact step:
+- Commit and push this session's fixes (not yet committed as of writing this entry); user will test again.
+
 ### Session 36g — 2026-09-03 (P6.5: first real-world feedback pass)
 Phase worked on: P6.5 — first real-world feedback pass (now complete; see `PLAN.md` §4)
 Completed:

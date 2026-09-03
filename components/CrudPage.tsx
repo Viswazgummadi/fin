@@ -1,3 +1,5 @@
+import { BackLink } from './BackLink';
+
 type Row = { title: string; subtitle?: string };
 
 export function CrudPage({
@@ -5,15 +7,20 @@ export function CrudPage({
   description,
   rows,
   children,
+  backHref,
+  backLabel,
 }: {
   title: string;
   description: string;
   rows: Row[];
   children?: React.ReactNode;
+  backHref?: string;
+  backLabel?: string;
 }) {
   return (
     <div className="space-y-6 fade-up">
       <div className="page-header">
+        {backHref ? <BackLink href={backHref} label={backLabel ?? 'Back'} /> : null}
         <h1 className="page-title">{title}</h1>
         <p className="page-copy">{description}</p>
       </div>
