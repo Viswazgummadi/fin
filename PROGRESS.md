@@ -1,3 +1,21 @@
+### Session 36e — 2026-09-03 (P6: remaining CRUD screens visual pass, worktree agent)
+Phase worked on: P6 — bring the remaining CRUD screens onto the liquid-glass design system (now complete; see `PLAN.md` §4)
+Completed:
+- Ran in worktree `worktree-agent-a0717a34abd80656e`. The worktree had branched before P1-P3 landed on `main`, so first fast-forwarded it onto `main` to pick up the design tokens, shell, and chart primitives before doing any P6 work.
+- Restyled `AccountsClient`, `CategoriesClient`, `TagsClient`, `PeopleClient`, `GoalsClient`, `LimitsClient`, `RecurringRulesClient`, `CalendarClient`, `WhatHappenedClient` onto `.glass-1`/`.surface-card`/`.data-row`/`.field`/`.btn-*`/`.kicker`, and normalized every route wrapper under `app/(app)/*/page.tsx` onto `.page-header`/`.page-title`/`.page-copy` (the P1-flagged inconsistency). Also picked up `manage/page.tsx` and `more/page.tsx` (optional scope) — added real icons to their link tiles.
+- Goals and Limits now use the `RadialProgress` chart primitive instead of flat bars/percent text.
+- Limits needed a real (not just cosmetic) fix: it had no transaction data to compute spend against a budget at all. Added a `transactions` prop threaded from `limits/page.tsx` (fetched with a `transaction_tags` join, reusing `TransactionWithTags` from `lib/analysis.ts`) and a local `spentForLimit` helper respecting each limit's scope (category/tag/overall) and period (current month or current week). Verified the over-100% → `--danger` swap with a mock 144%-over-budget limit.
+- Calendar and What Happened got the more substantial layout rework the brief called for: Calendar gained real month navigation (previously stuck on the current month) and spend-intensity-tinted day cells; What Happened got a proper date-nav control bar, tinted stat tiles, and per-transaction-type icons in the journal list. Judgment call: kept Calendar as a month grid rather than swapping to the `HeatmapCalendar` primitive (already used in Analysis) since a month grid is genuinely the right shape for a monthly calendar with day numbers, not a week-column heatmap.
+- Tags and People were still on pre-redesign raw Tailwind tokens (not the glass classes); fully converted, and both gained a curated `--chart-1..8` color-swatch picker in place of a bare hex input.
+- `BackupRestoreClient`/`settings/page.tsx` were already fully on the design system from an earlier session; only fixed one stale "dark-first" copy line to mention the light/dark toggle.
+- Verified all 10 screens + Manage/More in both themes via a temporary `/login/preview/p6` route + headless Chromium (deleted before commit) — mock data passed directly as props for the 7 components that accept it, and small preview-only mirror components (also deleted) for Calendar/WhatHappened since those fetch via `useQuery`+Supabase internally and this environment has no Supabase credentials configured at all.
+- `npm run build`/`lint` pass; reverted the build-regenerated `public/sw.js`/`public/workbox-*.js` and removed `tsconfig.tsbuildinfo` before committing.
+Broken / TODO:
+- `QuickSpendSettings.tsx` (used by `manage/page.tsx`) wasn't in P6's explicit scope and is reasonably consistent already (token-based, just not using `.field`/`.btn-*`) — left alone, worth a follow-up if another phase touches manual entry again.
+- This worktree's branch has not been merged to `main` — that's the next step for whoever picks this up (see `PLAN.md` §7).
+Next exact step:
+- Merge `worktree-agent-a0717a34abd80656e` into `main`, re-run `npm run build`/`lint` on the merged result (per §7's merge protocol), update `PLAN.md` §7 status to `merged`.
+
 ### Session 36d — 2026-09-03 (P1.5: light/dark theming + P3: Analysis rebuild)
 Phase worked on: P1.5 (light/dark theme retrofit, added mid-session on user request) and P3 — Analysis rebuild (flagship, now complete; see `PLAN.md` §4)
 Completed:

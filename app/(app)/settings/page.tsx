@@ -10,7 +10,7 @@ export default async function SettingsPage() {
       <BackupRestoreClient />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card title="Shortcuts" text="Quick spend in the header, full entry in transactions." />
-        <Card title="Theme" text="Dark-first, low-glare, mono-number design." />
+        <Card title="Theme" text="Dark or light liquid-glass — toggle it from the header, your choice is remembered." />
         <Card title="AI summaries" text="Kept out for this MVP." />
       </div>
     </div>

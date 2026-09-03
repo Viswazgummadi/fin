@@ -4,6 +4,17 @@ import { useState } from 'react';
 import type { Tag } from '../lib/types';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 
+const PRESET_COLORS = [
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
+  'var(--chart-6)',
+  'var(--chart-7)',
+  'var(--chart-8)',
+];
+
 export function TagsClient({ initialTags }: { initialTags: Tag[] }) {
   const supabase = createSupabaseBrowserClient();
   const [tags, setTags] = useState(initialTags);
@@ -18,23 +29,60 @@ export function TagsClient({ initialTags }: { initialTags: Tag[] }) {
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
-      <section className="space-y-3 rounded-xl border border-border bg-bg-secondary p-4">
-        <div className="font-semibold">Tags</div>
-        <input className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="Tag name" value={name} onChange={(e) => setName(e.target.value)} />
-        <input className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="# color" value={color} onChange={(e) => setColor(e.target.value)} />
-        <button onClick={add} className="min-h-11 rounded-lg bg-accent px-4 py-2 font-medium text-black">Add tag</button>
-      </section>
-      <section className="space-y-3 rounded-xl border border-border bg-bg-secondary p-4">
-        <div className="font-semibold">Saved tags</div>
-        <div className="flex flex-wrap gap-2">
-          {tags.length ? tags.map((tag) => (
-            <span key={tag.id} className="rounded-full border border-border px-3 py-2 text-sm" style={{ backgroundColor: `${tag.color ?? '#6366f1'}22` }}>
-              {tag.name}
-            </span>
-          )) : <div className="text-sm text-text-secondary">No tags yet.</div>}
+    <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
+      <section className="surface-card space-y-3 p-4">
+        <div>
+          <div className="kicker">Organize</div>
+          <div className="mt-1 font-medium">Create tag</div>
         </div>
+        <input className="field" placeholder="Tag name" value={name} onChange={(e) => setName(e.target.value)} />
+        <div>
+          <div className="mb-2 flex flex-wrap gap-2">
+            {PRESET_COLORS.map((swatch) => (
+              <button
+                key={swatch}
+                type="button"
+                onClick={() => setColor(swatch)}
+                aria-label={`Use color ${swatch}`}
+                className="h-7 w-7 rounded-full transition"
+                style={{
+                  background: swatch,
+                  boxShadow: color === swatch ? '0 0 0 2px var(--bg-secondary), 0 0 0 4px var(--accent)' : 'none',
+                }}
+              />
+            ))}
+          </div>
+          <input className="field font-mono text-sm" placeholder="#hexcolor" value={color} onChange={(e) => setColor(e.target.value)} />
+        </div>
+        <button onClick={add} className="btn-primary w-full">Add tag</button>
+      </section>
+
+      <section className="surface-card p-4">
+        <div className="mb-3">
+          <div className="kicker">Labels</div>
+          <div className="mt-1 font-medium">Saved tags</div>
+        </div>
+        {tags.length ? (
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <span
+                key={tag.id}
+                className="data-row inline-flex items-center gap-2 px-3 py-2 text-sm"
+                style={{ borderColor: `${tag.color ?? '#6366f1'}40` }}
+              >
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: tag.color ?? '#6366f1' }} />
+                {tag.name}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <EmptyState text="No tags yet. Create one to start organizing transactions." />
+        )}
       </section>
     </div>
   );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return <div className="rounded-[--radius-sm] border border-dashed border-[--hairline] p-6 text-center text-sm text-[--text-muted]">{text}</div>;
 }

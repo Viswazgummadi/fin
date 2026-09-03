@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { Repeat } from 'lucide-react';
 import type { Account, Category, RecurringRule } from '../lib/types';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 import { formatMoney } from '../lib/insights';
@@ -19,6 +20,9 @@ export function RecurringRulesClient({ initialRules, accounts, categories }: { i
   const [weekday, setWeekday] = useState('');
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [nextRunDate, setNextRunDate] = useState(new Date().toISOString().slice(0, 10));
+
+  const accountMap = new Map(accounts.map((a) => [a.id, a.name]));
+  const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
   const save = async () => {
     if (!supabase || !accountId || !amount) return;
@@ -50,57 +54,77 @@ export function RecurringRulesClient({ initialRules, accounts, categories }: { i
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
-      <section className="space-y-3 rounded-xl border border-border bg-bg-secondary p-4">
-        <div className="font-semibold">Recurring rules</div>
+    <div className="grid gap-4 xl:grid-cols-[1.1fr_1fr]">
+      <section className="surface-card space-y-4 p-4">
+        <div>
+          <div className="kicker">Automation</div>
+          <div className="mt-1 font-medium">Add recurring rule</div>
+        </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+          <select className="field" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
             {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
           </select>
-          <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={type} onChange={(e) => setType(e.target.value as RecurringRule['type'])}>
+          <select className="field" value={type} onChange={(e) => setType(e.target.value as RecurringRule['type'])}>
             <option value="expense">Expense</option>
             <option value="income">Income</option>
             <option value="transfer">Transfer</option>
           </select>
-          <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+          <select className="field" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
             <option value="">No category</option>
             {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
           </select>
-          <input className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={frequency} onChange={(e) => setFrequency(e.target.value as RecurringRule['frequency'])}>
+          <input className="field" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <select className="field" value={frequency} onChange={(e) => setFrequency(e.target.value as RecurringRule['frequency'])}>
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>
             <option value="yearly">Yearly</option>
           </select>
-          <input className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="Interval" inputMode="numeric" value={intervalCount} onChange={(e) => setIntervalCount(e.target.value)} />
-          <input className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="Day of month" inputMode="numeric" value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)} />
-          <input className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="Weekday (0-6)" inputMode="numeric" value={weekday} onChange={(e) => setWeekday(e.target.value)} />
-          <input className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          <input className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" type="date" value={nextRunDate} onChange={(e) => setNextRunDate(e.target.value)} />
-          <textarea className="min-h-24 rounded-lg border border-border bg-bg-tertiary px-3 py-2 md:col-span-2 xl:col-span-3" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} />
+          <input className="field" placeholder="Interval" inputMode="numeric" value={intervalCount} onChange={(e) => setIntervalCount(e.target.value)} />
+          <input className="field" placeholder="Day of month" inputMode="numeric" value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)} />
+          <input className="field" placeholder="Weekday (0-6)" inputMode="numeric" value={weekday} onChange={(e) => setWeekday(e.target.value)} />
+          <input className="field" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <input className="field" type="date" value={nextRunDate} onChange={(e) => setNextRunDate(e.target.value)} />
+          <textarea className="field md:col-span-2 xl:col-span-3" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} />
         </div>
-        <button onClick={save} className="min-h-11 rounded-lg bg-accent px-4 py-2 font-medium text-black">Add recurring rule</button>
+        <button onClick={save} className="btn-primary">Add recurring rule</button>
       </section>
 
-      <section className="space-y-3 rounded-xl border border-border bg-bg-secondary p-4">
-        <div className="font-semibold">Active rules</div>
-        {rules.length ? rules.map((rule) => (
-          <div key={rule.id} className="rounded-xl border border-border bg-bg-primary/40 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="font-medium">{rule.type} · {rule.frequency}</div>
-                <div className="text-sm text-text-secondary">{rule.note ?? 'No note'}</div>
-                <div className="text-xs text-text-muted">Next run {rule.next_run_date}</div>
+      <section className="surface-card p-4">
+        <div className="mb-3">
+          <div className="kicker">Schedule</div>
+          <div className="mt-1 font-medium">Active rules</div>
+        </div>
+        {rules.length ? (
+          <div className="space-y-2">
+            {rules.map((rule) => (
+              <div key={rule.id} className="data-row flex items-center justify-between gap-3 px-3 py-2.5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Repeat size={16} className="shrink-0 text-[--accent-2]" />
+                  <div className="min-w-0">
+                    <div className="truncate font-medium capitalize">{rule.type} &middot; every {rule.interval_count > 1 ? `${rule.interval_count} ` : ''}{rule.frequency}</div>
+                    <div className="truncate text-sm text-[--text-secondary]">
+                      {accountMap.get(rule.account_id) ?? 'Unknown account'}
+                      {rule.category_id ? ` · ${categoryMap.get(rule.category_id) ?? 'Unknown category'}` : ''}
+                    </div>
+                    <div className="text-xs text-[--text-muted]">{rule.note ?? 'No note'} · next {rule.next_run_date}</div>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <div className="font-mono text-sm">{formatMoney(Number(rule.amount))}</div>
+                  <button onClick={() => disable(rule.id)} className="btn-ghost px-2 py-1 text-xs">Disable</button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <div className="font-mono">{formatMoney(Number(rule.amount))}</div>
-                <button onClick={() => disable(rule.id)} className="rounded-lg border border-border px-3 py-1 text-sm">Disable</button>
-              </div>
-            </div>
+            ))}
           </div>
-        )) : <div className="rounded-lg border border-dashed border-border p-4 text-sm text-text-secondary">No recurring rules yet.</div>}
+        ) : (
+          <EmptyState text="No recurring rules yet." />
+        )}
       </section>
     </div>
   );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return <div className="rounded-[--radius-sm] border border-dashed border-[--hairline] p-6 text-center text-sm text-[--text-muted]">{text}</div>;
 }

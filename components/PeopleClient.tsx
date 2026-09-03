@@ -7,18 +7,21 @@ import { formatMoney } from '../lib/insights';
 
 const ledgerTypes = ['lent', 'borrowed', 'shared_expense', 'reimbursement', 'settlement'] as const;
 
+const AVATAR_COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)', 'var(--chart-6)'];
+
 export function PeopleClient({ initialPeople, initialLedger }: { initialPeople: Person[]; initialLedger: PersonLedger[] }) {
   const supabase = createSupabaseBrowserClient();
   const [people, setPeople] = useState(initialPeople);
   const [ledger, setLedger] = useState(initialLedger);
   const [name, setName] = useState('');
-  const [avatarColor, setAvatarColor] = useState('#6366f1');
+  const [avatarColor, setAvatarColor] = useState(AVATAR_COLORS[0]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState(initialPeople[0]?.id ?? '');
   const [entryType, setEntryType] = useState<PersonLedger['type']>('lent');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
 
+  const selectedPerson = people.find((p) => p.id === selectedPersonId) ?? null;
   const selectedLedger = useMemo(() => ledger.filter((row) => row.person_id === selectedPersonId), [ledger, selectedPersonId]);
   const balances = useMemo(() => {
     const map = new Map<string, number>();
@@ -33,7 +36,7 @@ export function PeopleClient({ initialPeople, initialLedger }: { initialPeople: 
   const reset = () => {
     setEditingId(null);
     setName('');
-    setAvatarColor('#6366f1');
+    setAvatarColor(AVATAR_COLORS[0]);
   };
 
   const savePerson = async () => {
@@ -55,7 +58,7 @@ export function PeopleClient({ initialPeople, initialLedger }: { initialPeople: 
   const editPerson = (person: Person) => {
     setEditingId(person.id);
     setName(person.name);
-    setAvatarColor(person.avatar_color ?? '#6366f1');
+    setAvatarColor(person.avatar_color ?? AVATAR_COLORS[0]);
   };
 
   const archivePerson = async (id: string) => {
@@ -92,79 +95,107 @@ export function PeopleClient({ initialPeople, initialLedger }: { initialPeople: 
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
-      <section className="space-y-4 rounded-xl border border-border bg-bg-secondary p-4">
-        <div className="space-y-3">
-          <div className="font-semibold">People</div>
-          <input className="min-h-11 w-full rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-          <input className="min-h-11 w-full rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="# color" value={avatarColor} onChange={(e) => setAvatarColor(e.target.value)} />
-          <button onClick={savePerson} className="min-h-11 w-full rounded-lg bg-accent px-4 py-2 font-medium text-black">{editingId ? 'Update' : 'Add'} person</button>
-          {editingId ? <button onClick={reset} className="text-sm text-text-secondary">Cancel edit</button> : null}
+    <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
+      <section className="surface-card space-y-4 p-4">
+        <div>
+          <div className="kicker">Ledger contacts</div>
+          <div className="mt-1 font-medium">{editingId ? 'Edit person' : 'Add person'}</div>
         </div>
-        <div className="space-y-2">
-          {people.length ? people.map((person) => (
-            <div
-              key={person.id}
-              className={`rounded-xl border p-3 text-left transition ${selectedPersonId === person.id ? 'border-accent bg-accent/10' : 'border-border bg-bg-primary/40'}`}
-              role="button"
-              tabIndex={0}
-              onClick={() => setSelectedPersonId(person.id)}
-              onKeyDown={(e) => e.key === 'Enter' && setSelectedPersonId(person.id)}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="font-medium">{person.name}</div>
-                  <div className="text-sm text-text-secondary">{formatMoney(balances.get(person.id) ?? 0)}</div>
+        <div className="space-y-3">
+          <input className="field" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+          <div className="flex flex-wrap gap-2">
+            {AVATAR_COLORS.map((swatch) => (
+              <button
+                key={swatch}
+                type="button"
+                onClick={() => setAvatarColor(swatch)}
+                aria-label={`Use color ${swatch}`}
+                className="h-7 w-7 rounded-full transition"
+                style={{
+                  background: swatch,
+                  boxShadow: avatarColor === swatch ? '0 0 0 2px var(--bg-secondary), 0 0 0 4px var(--accent)' : 'none',
+                }}
+              />
+            ))}
+          </div>
+          <button onClick={savePerson} className="btn-primary w-full">{editingId ? 'Update' : 'Add'} person</button>
+          {editingId ? <button onClick={reset} className="btn-ghost w-full text-sm">Cancel edit</button> : null}
+        </div>
+
+        <div className="space-y-2 border-t border-[--hairline] pt-4">
+          {people.length ? people.map((person) => {
+            const balance = balances.get(person.id) ?? 0;
+            const active = selectedPersonId === person.id;
+            return (
+              <div
+                key={person.id}
+                className={`data-row flex items-center justify-between gap-3 px-3 py-2.5 ${active ? 'border-[--accent-2] bg-[--accent-wash]' : ''}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedPersonId(person.id)}
+                onKeyDown={(e) => e.key === 'Enter' && setSelectedPersonId(person.id)}
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="h-8 w-8 shrink-0 rounded-full" style={{ background: person.avatar_color ?? AVATAR_COLORS[0] }} />
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{person.name}</div>
+                    <div className={`font-mono text-xs ${balance > 0 ? 'text-[--accent]' : balance < 0 ? 'text-[--danger]' : 'text-[--text-muted]'}`}>
+                      {formatMoney(Math.abs(balance))} {balance > 0 ? 'owed to you' : balance < 0 ? 'you owe' : 'settled'}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-4 w-4 rounded-full border border-border" style={{ backgroundColor: person.avatar_color ?? '#6366f1' }} />
-                  <button onClick={(e) => { e.stopPropagation(); editPerson(person); }} className="text-xs text-text-secondary">Edit</button>
-                  <button onClick={(e) => { e.stopPropagation(); archivePerson(person.id); }} className="text-xs text-text-secondary">Archive</button>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button onClick={(e) => { e.stopPropagation(); editPerson(person); }} className="btn-ghost px-2 py-1 text-xs">Edit</button>
+                  <button onClick={(e) => { e.stopPropagation(); archivePerson(person.id); }} className="btn-ghost px-2 py-1 text-xs">Archive</button>
                 </div>
               </div>
-            </div>
-          )) : <div className="rounded-lg border border-dashed border-border p-4 text-sm text-text-secondary">No people yet.</div>}
+            );
+          }) : <EmptyState text="No people yet." />}
         </div>
       </section>
 
-      <section className="space-y-4 rounded-xl border border-border bg-bg-secondary p-4">
-        <div className="flex items-center justify-between gap-3">
+      <section className="surface-card space-y-4 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="font-semibold">Ledger</div>
-            <div className="text-sm text-text-secondary">Record lend/borrow/shared expenses and settlements.</div>
+            <div className="kicker">Balance</div>
+            <div className="mt-1 font-medium">{selectedPerson ? selectedPerson.name : 'Select a person'}</div>
           </div>
-          <div className="flex gap-2">
-            <div className="font-mono text-lg">{formatMoney(balances.get(selectedPersonId) ?? 0)}</div>
-            <button onClick={settleUp} className="rounded-lg border border-border px-3 py-2 text-sm min-h-11">Settle up</button>
+          <div className="flex items-center gap-3">
+            <div className={`font-mono text-lg ${(balances.get(selectedPersonId) ?? 0) > 0 ? 'text-[--accent]' : (balances.get(selectedPersonId) ?? 0) < 0 ? 'text-[--danger]' : ''}`}>
+              {formatMoney(balances.get(selectedPersonId) ?? 0)}
+            </div>
+            <button onClick={settleUp} className="btn-secondary text-sm">Settle up</button>
           </div>
         </div>
 
         <div className="grid gap-3 md:grid-cols-4">
-          <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={selectedPersonId} onChange={(e) => setSelectedPersonId(e.target.value)}>
+          <select className="field" value={selectedPersonId} onChange={(e) => setSelectedPersonId(e.target.value)}>
             {people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
           </select>
-          <select className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" value={entryType} onChange={(e) => setEntryType(e.target.value as PersonLedger['type'])}>
+          <select className="field" value={entryType} onChange={(e) => setEntryType(e.target.value as PersonLedger['type'])}>
             {ledgerTypes.map((type) => <option key={type} value={type}>{type.replace('_', ' ')}</option>)}
           </select>
-          <input className="min-h-11 rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          <button onClick={addLedger} className="min-h-11 rounded-lg bg-accent px-4 py-2 font-medium text-black">Add ledger item</button>
+          <input className="field" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <button onClick={addLedger} className="btn-primary">Add entry</button>
         </div>
-        <input className="min-h-11 w-full rounded-lg border border-border bg-bg-tertiary px-3 py-2" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} />
+        <input className="field" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} />
 
         <div className="space-y-2">
           {selectedLedger.length ? selectedLedger.map((row) => (
-            <div key={row.id} className="rounded-lg border border-border bg-bg-primary/50 p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="font-medium">{row.type.replace('_', ' ')}</div>
-                  <div className="text-sm text-text-secondary">{row.note ?? 'No note'}</div>
-                </div>
-                <div className="font-mono">{formatMoney(Number(row.amount))}</div>
+            <div key={row.id} className="data-row flex items-center justify-between gap-3 px-3 py-2.5">
+              <div className="min-w-0">
+                <div className="font-medium capitalize">{row.type.replace('_', ' ')}</div>
+                <div className="truncate text-sm text-[--text-secondary]">{row.note ?? 'No note'}</div>
               </div>
+              <div className="shrink-0 font-mono text-sm">{formatMoney(Number(row.amount))}</div>
             </div>
-          )) : <div className="rounded-lg border border-dashed border-border p-4 text-sm text-text-secondary">No ledger entries for this person yet.</div>}
+          )) : <EmptyState text="No ledger entries for this person yet." />}
         </div>
       </section>
     </div>
   );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return <div className="rounded-[--radius-sm] border border-dashed border-[--hairline] p-6 text-center text-sm text-[--text-muted]">{text}</div>;
 }
