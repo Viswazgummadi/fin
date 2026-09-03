@@ -33,6 +33,20 @@ Broken / TODO:
 Next exact step:
 - Coordinating session: merge this worktree's branch into `main`, re-run `npm run build`/`lint` on the merged tree, update `PLAN.md` §7's P4 row to `merged`
 
+### Session 36e — 2026-09-03 (P5: manual entry UX — tag wiring + restyle, dispatched agent)
+Phase worked on: P5 — Manual entry UX (now complete; see `PLAN.md` §4), run as a worktree-isolated dispatched agent per §7
+Completed:
+- Wired tags into transaction entry, the real gap P3 found: `TransactionsClient.tsx`'s add/edit form now has a toggleable tag-chip multi-select; create inserts `transaction_tags` rows against the newly-returned transaction id, edit pre-loads and lets you change a transaction's existing tags (delete-then-reinsert on save), and each row in the transaction list shows its attached tags
+- Decided and documented the offline/outbox interaction: tag edits need a real synced transaction id, so editing a still-local-only optimistic row disables tag editing with an explanatory note; everywhere else, tag selections are queued through the outbox too (`lib/offline-sync.ts` gained an optional `tagIds` field on insert/update outbox items, applied once the underlying transaction flushes and its real id is known) rather than being silently dropped when offline
+- Restyled `QuickAdd`/`QuickAddModal`/`TransactionsClient` onto the glass design system (`.field`/`.btn-*`/`.data-row`/`.kicker`), swapped emoji header controls for lucide icons, added framer-motion spring entrances to both modal surfaces matching `CommandPalette`'s existing pattern — every existing feature (search/filter popups, month nav, edit/delete/undo, offline indicator) still works
+- Found and fixed two pre-existing, app-wide light-theme bugs while visually verifying (not scope creep — both silently broke every screen's light theme, not just this session's files): (1) a shared `transition: background-color/border-color/color` rule left every themed button/field **stuck showing dark-theme colors after switching to light**, because Chromium doesn't restart a transition when only the referenced custom property's value changes, not the specified `var(--x)` string — fixed by dropping those three from the transition list; (2) `.btn-danger`'s hardcoded `#ffd7df` text was illegible on light theme's pale danger wash — added a themed `--on-danger` token. Also fixed a real layout bug in the Filters popup's stat-tile grid overlapping at wide viewports (viewport-based breakpoint used inside a narrow modal column).
+- Verified end-to-end against a temporary preview route + a small hand-written in-memory mock Supabase client (this worktree has no `.env.local`, so the real client always returns `null` here — no other way to exercise the write path). Directly inspected the mock DB after each UI action to confirm `transaction_tags` rows were correct after create/edit/detach, not just eyeballing screenshots. Route, mock, and a one-line temporary injection shim in `utils/supabase/client.ts` were all deleted/reverted before committing.
+- `npm run build`/`lint` pass
+Broken / TODO:
+- Nothing known broken. This branch (`worktree-agent-a40981c3450d7abad`) is not yet merged to main — see `PLAN.md` §7 for merge status
+Next exact step:
+- Merge this worktree's branch into main alongside P4/P6 once they land, re-run `build`/`lint` on the merged result (per §7's merge checklist), then continue with P7+
+
 ### Session 36d — 2026-09-03 (P1.5: light/dark theming + P3: Analysis rebuild)
 Phase worked on: P1.5 (light/dark theme retrofit, added mid-session on user request) and P3 — Analysis rebuild (flagship, now complete; see `PLAN.md` §4)
 Completed:

@@ -2,8 +2,22 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import Link from 'next/link';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Account, Category, Transaction } from '../lib/types';
+import {
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  RotateCcw,
+  Search as SearchIcon,
+  SlidersHorizontal,
+  Tag as TagIcon,
+  Trash2,
+  X,
+} from 'lucide-react';
+import type { Account, Category, Tag, Transaction } from '../lib/types';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 import {
   formatMoney,
@@ -15,7 +29,7 @@ import {
   toDateKey,
 } from '../lib/insights';
 import { queryKeys } from '../lib/query-keys';
-import { enqueueOfflineOutboxItem } from '../lib/offline-sync';
+import { enqueueOfflineOutboxItem, isLocalOnlyTransactionId } from '../lib/offline-sync';
 import { TransactionSuggestions } from './TransactionSuggestions';
 
 type PlannedFilter = 'all' | 'planned' | 'unplanned';
@@ -48,6 +62,7 @@ export function TransactionsClient({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [status, setStatus] = useState('');
   const [recentlyDeleted, setRecentlyDeleted] = useState<Transaction | null>(null);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   const [search, setSearch] = useState('');
   const [filterAccountId, setFilterAccountId] = useState('all');
@@ -92,6 +107,54 @@ export function TransactionsClient({
     placeholderData: (previousData) => previousData,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
+  });
+
+  const { data: tags = [] } = useQuery({
+    queryKey: queryKeys.tags,
+    queryFn: async () => {
+      if (!supabase) return [];
+      const { data, error } = await supabase.from('tags').select('*').order('name', { ascending: true });
+      if (error) throw error;
+      return (data as Tag[] | null) ?? [];
+    },
+    enabled: !!supabase,
+    staleTime: 5 * 60_000,
+  });
+
+  const isEditingLocalTxn = editingId ? isLocalOnlyTransactionId(editingId) : false;
+
+  const toggleTag = (tagId: string) => {
+    setSelectedTagIds((current) => (current.includes(tagId) ? current.filter((id) => id !== tagId) : [...current, tagId]));
+  };
+
+  // Lightweight lookup for showing tag chips on each row. Kept separate from the
+  // transactions query itself (rather than joining transaction_tags into TRANSACTION_SELECT)
+  // so the add/edit/delete/undo/optimistic-update state machine above keeps working with
+  // plain `Transaction` values everywhere — this is purely additive display data, invalidated
+  // together with the rest of the window under the shared `queryKeys.transactionWindows` prefix.
+  const syncedTransactionIds = useMemo(
+    () => transactions.map((t) => t.id).filter((id) => !isLocalOnlyTransactionId(id)),
+    [transactions]
+  );
+
+  const { data: tagsByTransaction = {} } = useQuery({
+    queryKey: [...queryKeys.transactionWindows, windowMonthKey, 'tags', syncedTransactionIds.join(',')],
+    queryFn: async () => {
+      if (!supabase || !syncedTransactionIds.length) return {};
+      const { data, error } = await supabase
+        .from('transaction_tags')
+        .select('transaction_id, tags(id,name,color)')
+        .in('transaction_id', syncedTransactionIds);
+      if (error) throw error;
+      const map: Record<string, Pick<Tag, 'id' | 'name' | 'color'>[]> = {};
+      for (const row of (data ?? []) as unknown as { transaction_id: string; tags: Pick<Tag, 'id' | 'name' | 'color'> | null }[]) {
+        if (!row.tags) continue;
+        (map[row.transaction_id] ??= []).push(row.tags);
+      }
+      return map;
+    },
+    enabled: !!supabase && syncedTransactionIds.length > 0,
+    staleTime: 30_000,
   });
 
   const filteredTransactions = useMemo(() => {
@@ -184,6 +247,7 @@ export function TransactionsClient({
     setCategoryId(categories[0]?.id ?? '');
     setAccountId(accounts[0]?.id ?? '');
     setTransferAccountId(accounts.find((a) => a.id !== accounts[0]?.id)?.id ?? '');
+    setSelectedTagIds([]);
   };
 
   const addOrUpdateTransaction = async () => {
@@ -216,6 +280,26 @@ export function TransactionsClient({
       is_planned: isPlanned,
     };
 
+    // Tags need a real (already-synced) transaction id to attach to via `transaction_tags`.
+    // Editing a transaction that itself is still a locally-queued optimistic row (a
+    // `local-` id, not yet flushed from the offline outbox) has no real id yet, so its
+    // tag selection is left untouched here — see PLAN.md P5 for the full reasoning.
+    const tagIds = isEditingLocalTxn ? [] : selectedTagIds;
+
+    const applyTagsForTransaction = async (transactionId: string) => {
+      if (!supabase) return;
+      const { error: clearError } = await supabase.from('transaction_tags').delete().eq('transaction_id', transactionId);
+      if (clearError) {
+        console.error('Failed to clear existing tags', clearError);
+        return;
+      }
+      if (!tagIds.length) return;
+      const { error: insertError } = await supabase
+        .from('transaction_tags')
+        .insert(tagIds.map((tagId) => ({ transaction_id: transactionId, tag_id: tagId })));
+      if (insertError) console.error('Failed to save tags', insertError);
+    };
+
     if (editingId) {
       if (!navigator.onLine || !supabase) {
         const optimistic = buildOptimisticTransaction({
@@ -236,6 +320,7 @@ export function TransactionsClient({
           kind: 'transaction-update',
           transactionId: editingId,
           payload,
+          tagIds: isEditingLocalTxn ? undefined : tagIds,
           createdAt: new Date().toISOString(),
         });
         setStatus('Update queued (offline).');
@@ -252,6 +337,7 @@ export function TransactionsClient({
         .single();
       if (!error && data) {
         upsertInCurrentWindow(data as Transaction);
+        if (!isEditingLocalTxn) await applyTagsForTransaction(editingId);
         await refreshTransactionWindows();
         setStatus('Transaction updated.');
         resetForm();
@@ -274,6 +360,7 @@ export function TransactionsClient({
             kind: 'transaction-update',
             transactionId: editingId,
             payload,
+            tagIds: isEditingLocalTxn ? undefined : tagIds,
             createdAt: new Date().toISOString(),
           });
           setStatus('Update queued (connection error).');
@@ -298,6 +385,7 @@ export function TransactionsClient({
           id: crypto.randomUUID(),
           kind: 'transaction-insert',
           payload,
+          tagIds: tagIds.length ? tagIds : undefined,
           createdAt: new Date().toISOString(),
         });
         setStatus('Transaction queued (offline).');
@@ -309,6 +397,7 @@ export function TransactionsClient({
     const { data, error } = await supabase.from('transactions').insert(payload).select(TRANSACTION_SELECT).single();
     if (!error && data) {
       upsertInCurrentWindow(data as Transaction);
+      if (tagIds.length) await applyTagsForTransaction((data as Transaction).id);
       await refreshTransactionWindows();
       setStatus(
         getMonthKey((data as Transaction).occurred_at) === windowMonthKey
@@ -332,6 +421,7 @@ export function TransactionsClient({
             id: crypto.randomUUID(),
             kind: 'transaction-insert',
             payload,
+            tagIds: tagIds.length ? tagIds : undefined,
             createdAt: new Date().toISOString(),
           });
           setStatus('Transaction queued (connection error).');
@@ -339,7 +429,7 @@ export function TransactionsClient({
     }
   };
 
-  const startEdit = (txn: Transaction) => {
+  const startEdit = async (txn: Transaction) => {
     setEditingId(txn.id);
     setAccountId(txn.account_id);
     setType(txn.type);
@@ -348,7 +438,19 @@ export function TransactionsClient({
     setAmount(txn.amount);
     setNote(txn.note ?? '');
     setIsPlanned(txn.is_planned !== false);
+    setSelectedTagIds([]);
+
+    if (isLocalOnlyTransactionId(txn.id)) {
+      setStatus('Editing transaction. Tags will be available once this finishes syncing.');
+      return;
+    }
+
     setStatus('Editing transaction.');
+    if (!supabase) return;
+    const { data, error } = await supabase.from('transaction_tags').select('tag_id').eq('transaction_id', txn.id);
+    if (!error && data) {
+      setSelectedTagIds((data as { tag_id: string }[]).map((row) => row.tag_id));
+    }
   };
 
   const deleteTxn = async (txn: Transaction) => {
@@ -463,6 +565,7 @@ export function TransactionsClient({
 
   const popup = popupMode ? (
     <TransactionsPopup
+      key="transactions-popup"
       mode={popupMode}
       onClose={closePopup}
       onResetAll={() => {
@@ -510,16 +613,21 @@ export function TransactionsClient({
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setWindowMonthKey(shiftMonthKey(windowMonthKey, -1))} className="btn-secondary px-3 text-sm" aria-label="Previous month">
-              ←
+              <ChevronLeft size={16} />
             </button>
             <button onClick={openMonth} className="btn-secondary px-3 text-sm" aria-label="Choose month">
-              📅
+              <CalendarIcon size={16} />
             </button>
             <button onClick={openSearch} className="btn-secondary px-3 text-sm" aria-label="Search transactions">
-              🔍
+              <SearchIcon size={16} />
             </button>
-            <button onClick={openFilters} className="btn-secondary px-3 text-sm" aria-label="Filter transactions">
-              ⌄
+            <button onClick={openFilters} className="btn-secondary relative px-3 text-sm" aria-label="Filter transactions">
+              <SlidersHorizontal size={16} />
+              {activeFilterCount ? (
+                <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[--accent] px-1 text-[10px] font-semibold text-[--on-accent]">
+                  {activeFilterCount}
+                </span>
+              ) : null}
             </button>
             <button
               onClick={() => setWindowMonthKey(shiftMonthKey(windowMonthKey, 1))}
@@ -527,7 +635,7 @@ export function TransactionsClient({
               disabled={windowMonthKey >= currentMonthKey}
               aria-label="Next month"
             >
-              →
+              <ChevronRight size={16} />
             </button>
           </div>
         </div>
@@ -574,24 +682,80 @@ export function TransactionsClient({
           <input type="checkbox" checked={isPlanned} onChange={(e) => setIsPlanned(e.target.checked)} />
           Planned transaction
         </label>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <span className="kicker">Tags</span>
+            {!isEditingLocalTxn && tags.length ? (
+              <Link href="/tags" className="text-xs text-[--accent]">Manage tags</Link>
+            ) : null}
+          </div>
+          {isEditingLocalTxn ? (
+            <p className="text-sm text-[--text-muted]">Tags will be available once this transaction finishes syncing.</p>
+          ) : tags.length ? (
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag) => {
+                const active = selectedTagIds.includes(tag.id);
+                const swatch = tag.color ?? 'var(--accent)';
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => toggleTag(tag.id)}
+                    aria-pressed={active}
+                    className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
+                    style={{
+                      borderColor: active ? swatch : 'var(--border)',
+                      background: active ? `${swatch}2e` : 'transparent',
+                      color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      boxShadow: active ? `0 0 0 1px ${swatch}` : 'none',
+                    }}
+                  >
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: swatch }} />
+                    {tag.name}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-[--text-muted]">
+              No tags yet — <Link href="/tags" className="text-[--accent]">create some</Link> to organize transactions.
+            </p>
+          )}
+        </div>
+
         {status ? <div className="surface-soft px-3 py-2 text-sm text-[--text-secondary]">{status}</div> : null}
         {editingId ? <button onClick={resetForm} className="btn-ghost w-fit text-sm">Cancel edit</button> : null}
       </section>
 
-      {recentlyDeleted ? (
-        <div className="surface-card flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
-          <div className="text-sm text-[--text-secondary]">
-            Deleted <span className="font-medium text-[--text-primary]">{recentlyDeleted.note || formatMoney(Number(recentlyDeleted.amount))}</span>. Undo is available until the next delete.
-          </div>
-          <button onClick={undoDelete} className="btn-ghost text-sm">Undo delete</button>
-        </div>
-      ) : null}
+      <AnimatePresence>
+        {recentlyDeleted ? (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="surface-card flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+              <div className="text-sm text-[--text-secondary]">
+                Deleted <span className="font-medium text-[--text-primary]">{recentlyDeleted.note || formatMoney(Number(recentlyDeleted.amount))}</span>. Undo is available until the next delete.
+              </div>
+              <button onClick={undoDelete} className="btn-ghost inline-flex w-fit items-center gap-1.5 text-sm">
+                <RotateCcw size={14} /> Undo delete
+              </button>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <div className="space-y-2">
-        {filteredTransactions.length ? filteredTransactions.map((t) => (
+        {filteredTransactions.length ? filteredTransactions.map((t) => {
+          const rowTags = tagsByTransaction[t.id] ?? [];
+          return (
           <div key={t.id} className="data-row p-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
+              <div className="min-w-0">
                 <div className="font-mono text-[--text-primary]">{formatMoney(Number(t.amount))} · {t.type}{t.is_planned === false ? ' · unplanned' : ''}</div>
                 <div className="mt-1 text-sm text-[--text-secondary]">
                   {t.type === 'transfer'
@@ -599,16 +763,35 @@ export function TransactionsClient({
                     : `${accountMap.get(t.account_id) ?? 'Unknown account'}${t.category_id ? ` · ${categoryMap.get(t.category_id) ?? 'Unknown category'}` : ''}`}
                 </div>
                 <div className="mt-1 text-sm text-[--text-muted]">{t.note ?? 'No note'}</div>
+                {rowTags.length ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {rowTags.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+                        style={{ background: `${tag.color ?? 'var(--accent)'}22`, color: 'var(--text-secondary)' }}
+                      >
+                        <TagIcon size={10} className="shrink-0" />
+                        {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => startEdit(t)} className="btn-secondary text-sm">Edit</button>
-                <button onClick={() => deleteTxn(t)} className="btn-danger text-sm">Delete</button>
+                <button onClick={() => startEdit(t)} className="btn-secondary inline-flex items-center gap-1.5 text-sm">
+                  <Pencil size={14} /> Edit
+                </button>
+                <button onClick={() => deleteTxn(t)} className="btn-danger inline-flex items-center gap-1.5 text-sm">
+                  <Trash2 size={14} /> Delete
+                </button>
               </div>
             </div>
           </div>
-        )) : <div className="surface-card p-4 text-sm text-[--text-secondary]">No transactions match the current filters.</div>}
+          );
+        }) : <div className="surface-card p-4 text-sm text-[--text-secondary]">No transactions match the current filters.</div>}
       </div>
-      {popup}
+      <AnimatePresence>{popup}</AnimatePresence>
     </div>
   );
 }
@@ -698,8 +881,22 @@ function TransactionsPopup({
   }, [onClose]);
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] bg-black/60 px-3 py-3 backdrop-blur-sm sm:px-4 sm:py-4" onClick={onClose}>
-      <div className="mx-auto flex h-full w-full max-w-4xl items-stretch" onClick={(event) => event.stopPropagation()}>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      className="fixed inset-0 z-[60] bg-black/60 px-3 py-3 backdrop-blur-sm sm:px-4 sm:py-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.97, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.98, y: 4 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+        className="mx-auto flex h-full w-full max-w-4xl items-stretch"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="surface-card flex max-h-[calc(100vh-1.5rem)] w-full flex-col overflow-hidden sm:max-h-[calc(100vh-2rem)]">
           <div className="border-b border-[--border] px-4 py-4 sm:px-5">
             <div className="flex items-start justify-between gap-4">
@@ -716,8 +913,8 @@ function TransactionsPopup({
                       : 'Jump between months without leaving the page.'}
                 </p>
               </div>
-              <button onClick={onClose} className="btn-ghost shrink-0 px-3 py-2 text-sm">
-                Close
+              <button onClick={onClose} className="btn-ghost inline-flex shrink-0 items-center gap-1.5 px-3 py-2 text-sm">
+                <X size={14} /> Close
               </button>
             </div>
           </div>
@@ -809,7 +1006,11 @@ function TransactionsPopup({
 
                 <div className="surface-soft p-4">
                   <div className="kicker">Overview</div>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {/* This block sits in the narrower half of the filters-mode two-column
+                      layout, not the full popup width — capped at 2 columns (unlike the
+                      month/search variant below) so amounts like "₹60,000.00" don't
+                      overflow into the next cell at 4-up. */}
+                  <div className="mt-3 grid grid-cols-2 gap-3">
                     <Stat title="Visible rows" value={String(filteredTransactionsCount)} />
                     <Stat title="Income" value={formatMoney(visibleStats.income)} mono />
                     <Stat title="Expense" value={formatMoney(visibleStats.expense)} mono />
@@ -846,8 +1047,8 @@ function TransactionsPopup({
             </div>
           </div>
         </div>
-      </div>
-    </div>,
+      </motion.div>
+    </motion.div>,
     document.body
   );
 }

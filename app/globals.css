@@ -95,6 +95,7 @@
   --ambient-grain-blend: overlay;
 
   --on-accent: #04120c;
+  --on-danger: #ffd7df;
   --fab-shadow: 0 14px 32px rgba(var(--accent-rgb), 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
@@ -154,6 +155,7 @@
   --ambient-grain-blend: multiply;
 
   --on-accent: #ffffff;
+  --on-danger: #881337;
   --fab-shadow: 0 14px 32px rgba(var(--accent-rgb), 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
@@ -292,10 +294,20 @@ input,
 select,
 textarea,
 a {
+  /* background-color/border-color/color are deliberately NOT transitioned here.
+     Their values come from theme custom properties (var(--bg-tertiary) etc.), and at
+     least in Chromium, a transitioned property whose *specified* value is an unchanged
+     `var(--x)` reference doesn't restart the transition when `--x` itself changes on
+     [data-theme] — it just keeps painting the pre-switch color indefinitely. Concretely:
+     every .field input/select and every .btn-* button rendered stuck in the dark
+     palette's colors after switching to light theme until some other property forced a
+     fresh recalc. Confirmed via computed-style checks in both `next dev` and a
+     production build, so it's not a dev-only artifact. Dropping these three from the
+     transition list makes theme switches apply instantly (no perceptible loss — 150ms
+     was barely visible anyway) instead of silently staying wrong. opacity/transform/
+     box-shadow aren't theme-driven the same way and keep their hover/press motion.
+     See PLAN.md P5 notes. */
   transition:
-    background-color var(--dur-fast) ease,
-    border-color var(--dur-fast) ease,
-    color var(--dur-fast) ease,
     opacity var(--dur-fast) ease,
     transform var(--dur-fast) var(--ease-spring),
     box-shadow var(--dur-fast) ease;
@@ -461,7 +473,7 @@ a:focus-visible {
 .btn-danger {
   border: 1px solid rgba(var(--danger-rgb), 0.3);
   background: rgba(var(--danger-rgb), 0.12);
-  color: #ffd7df;
+  color: var(--on-danger);
 }
 
 .kicker {
@@ -475,7 +487,11 @@ a:focus-visible {
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.015);
   border-radius: var(--radius-xs);
-  transition: transform var(--dur-base) var(--ease-spring), border-color var(--dur-base) ease, background-color var(--dur-base) ease;
+  /* border-color intentionally excluded — it resolves from the themed var(--border);
+     see the note on the shared button/input/select/textarea/a rule above for why a
+     transitioned var()-driven color can get stuck across a theme switch. This one isn't
+     theme-driven (a literal rgba), so it's safe to animate. */
+  transition: transform var(--dur-base) var(--ease-spring), background-color var(--dur-base) ease;
 }
 
 .data-row:hover {
