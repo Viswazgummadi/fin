@@ -23,6 +23,11 @@ export const metadata: Metadata = {
   title: APP_NAME,
   description: APP_TAGLINE,
   manifest: '/manifest.webmanifest',
+  icons: {
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    shortcut: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+  },
 };
 
 export const viewport: Viewport = {

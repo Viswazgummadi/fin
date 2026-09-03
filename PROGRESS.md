@@ -1,3 +1,15 @@
+### Session 36i — 2026-09-03 (P6.7: auto-hide nav feature + favicon fix)
+Phase worked on: P6.7 (now complete; see `PLAN.md` §4)
+Completed:
+- Built the auto-hide sidebar/header feature the user asked for: desktop-only, toggled in Settings, reveals on cursor proximity to the screen edge. New files: `lib/nav-preferences.ts`, `lib/useAutoHideNav.ts`, `components/AppHeader.tsx` (header extracted out of `AppShell` since it needs hooks), `components/AutoHideNavSetting.tsx`.
+- Verification caught a test-script false negative worth remembering: Playwright's virtual cursor defaults to `(0,0)`, which is inside the sidebar's own edge-trigger zone, so the first test run showed it immediately re-revealing and looked broken. Moving the simulated mouse away before toggling the setting confirmed it actually works correctly.
+- Fixed the favicon (asked for a "good" one) and in the process found it wasn't wired up **at all** — `public/icon.svg` existed but nothing referenced it (Next's auto-favicon convention needs `app/icon.*`, and there was no `metadata.icons` entry). Redesigned the mark to match current tokens and added the metadata entry; confirmed the `<link rel="icon">` tags render.
+- Committed and pushed (see git log).
+Broken / TODO:
+- Nothing known broken.
+Next exact step:
+- User asked for a full multi-agent integrity/bug audit across the app — dispatching that next, see `PLAN.md` §7 for the dispatch table once launched.
+
 ### Session 36h — 2026-09-03 (P6.6: second real-world feedback pass)
 Phase worked on: P6.6 — second real-world feedback pass (now complete; see `PLAN.md` §4)
 Completed:

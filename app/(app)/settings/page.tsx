@@ -1,4 +1,5 @@
 import { BackupRestoreClient } from '../../../components/BackupRestoreClient';
+import { AutoHideNavSetting } from '../../../components/AutoHideNavSetting';
 
 export default async function SettingsPage() {
   return (
@@ -8,6 +9,7 @@ export default async function SettingsPage() {
         <p className="page-copy">Backups, restore, and app settings.</p>
       </div>
       <BackupRestoreClient />
+      <AutoHideNavSetting />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card title="Shortcuts" text="Quick spend in the header, full entry in transactions." />
         <Card title="Theme" text="Dark or light liquid-glass — toggle it from the header, your choice is remembered." />

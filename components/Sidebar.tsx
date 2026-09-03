@@ -2,16 +2,36 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { NAV_ITEMS, isActiveNavPath } from '../lib/nav';
 import { APP_NAME } from '../lib/brand';
+import { useAutoHideNav } from '../lib/useAutoHideNav';
 
 const SIDEBAR_COLLAPSED_KEY = 'fin.sidebar.collapsed';
+const AUTO_HIDE_LEAVE_DELAY = 400;
 
 export function Sidebar({ initialCollapsed = false }: { initialCollapsed?: boolean }) {
   const pathname = usePathname();
+  const autoHide = useAutoHideNav();
+  const [peek, setPeek] = useState(false);
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const clearHideTimer = () => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+  };
+  const revealNow = () => {
+    clearHideTimer();
+    setPeek(true);
+  };
+  const scheduleHide = () => {
+    clearHideTimer();
+    hideTimer.current = setTimeout(() => setPeek(false), AUTO_HIDE_LEAVE_DELAY);
+  };
+  useEffect(() => clearHideTimer, []);
+
+  const hidden = autoHide && !peek;
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === 'undefined') return initialCollapsed;
     const stored = window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
@@ -50,14 +70,25 @@ export function Sidebar({ initialCollapsed = false }: { initialCollapsed?: boole
   // transformed ancestor between it and the viewport, so the spacer is CSS-only here.
   const SIDEBAR_DURATION = 320;
   const SIDEBAR_EASE = [0.16, 1, 0.3, 1] as const;
+  const asideWidth = collapsed ? 64 : 256;
 
   return (
     <div
       className="hidden shrink-0 lg:block"
-      style={{ width: collapsed ? 96 : 288, transition: `width ${SIDEBAR_DURATION}ms cubic-bezier(${SIDEBAR_EASE.join(',')})` }}
+      style={{
+        width: hidden ? 0 : collapsed ? 96 : 288,
+        transition: `width ${SIDEBAR_DURATION}ms cubic-bezier(${SIDEBAR_EASE.join(',')})`,
+      }}
     >
+      {/* Edge-hover trigger: only needed (and only rendered) while the sidebar is actually
+          hidden — reveals it on approach without a continuous mousemove listener. */}
+      {autoHide && hidden ? (
+        <div className="fixed inset-y-0 left-0 z-40 hidden w-2.5 lg:block" onMouseEnter={revealNow} aria-hidden="true" />
+      ) : null}
       <motion.aside
-        animate={{ width: collapsed ? 64 : 256 }}
+        onMouseEnter={autoHide ? revealNow : undefined}
+        onMouseLeave={autoHide ? scheduleHide : undefined}
+        animate={{ width: asideWidth, x: hidden ? -(asideWidth + 32) : 0 }}
         transition={{ duration: SIDEBAR_DURATION / 1000, ease: SIDEBAR_EASE }}
         className="glass-nav fixed bottom-4 left-4 top-4 z-40 flex flex-col overflow-hidden p-3"
       >

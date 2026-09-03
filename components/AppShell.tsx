@@ -1,12 +1,10 @@
-import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { Sidebar } from './Sidebar';
-import { HeaderActions } from './HeaderActions';
+import { AppHeader } from './AppHeader';
 import { MobileDock } from './MobileDock';
 import { CommandPalette } from './CommandPalette';
 import { PageTransition } from './PageTransition';
 import { SyncManager } from './SyncManager';
-import { APP_NAME } from '../lib/brand';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const collapsed = cookies().get('fin.sidebar.collapsed')?.value === 'true';
@@ -17,16 +15,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <CommandPalette />
       <Sidebar initialCollapsed={collapsed} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-3 z-30 mx-3 sm:mx-4 lg:mx-6">
-          <div className="glass-2 mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
-            <Link href="/" className="min-w-0 lg:hidden">
-              <div className="truncate font-mono text-sm font-medium tracking-wide text-[--text-primary]">{APP_NAME}</div>
-            </Link>
-            <div className="ml-auto">
-              <HeaderActions />
-            </div>
-          </div>
-        </header>
+        <AppHeader />
         <main className="mx-auto w-full max-w-6xl flex-1 px-3 pb-28 pt-4 sm:px-4 md:px-6 lg:pb-6">
           <PageTransition>{children}</PageTransition>
         </main>
