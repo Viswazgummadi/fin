@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { NAV_ITEMS, isActiveNavPath } from '../lib/nav';
+import { APP_NAME } from '../lib/brand';
 
 const SIDEBAR_COLLAPSED_KEY = 'fin.sidebar.collapsed';
 
@@ -39,13 +40,23 @@ export function Sidebar({ initialCollapsed = false }: { initialCollapsed?: boole
     });
   };
 
+  // The spacer (reserves layout space, since the panel itself is `fixed`) and the panel
+  // share one spring config so they move in perfect lockstep — previously the spacer used
+  // a plain CSS width transition while the panel used framer-motion's `layout` prop *plus*
+  // a directly-set inline width, two unsynchronized mechanisms fighting each other, which is
+  // what read as a janky/"immature" collapse animation.
+  const sidebarTransition = { type: 'spring' as const, stiffness: 300, damping: 30 };
+
   return (
-    <div className={`hidden shrink-0 transition-[width] duration-300 lg:block ${collapsed ? 'w-24' : 'w-72'}`}>
+    <motion.div
+      className="hidden shrink-0 lg:block"
+      animate={{ width: collapsed ? 96 : 288 }}
+      transition={sidebarTransition}
+    >
       <motion.aside
-        layout
-        transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+        animate={{ width: collapsed ? 64 : 256 }}
+        transition={sidebarTransition}
         className="glass-nav fixed bottom-4 left-4 top-4 z-40 flex flex-col overflow-hidden p-3"
-        style={{ width: collapsed ? 64 : 256 }}
       >
         <div className={`mb-5 flex shrink-0 ${collapsed ? 'justify-center' : 'items-start justify-between'} gap-2`}>
           <AnimatePresence initial={false}>
@@ -59,17 +70,17 @@ export function Sidebar({ initialCollapsed = false }: { initialCollapsed?: boole
               >
                 <div className="text-sm text-[--text-secondary]">Private finance</div>
                 <div className="bg-gradient-to-r from-[--text-primary] to-[--accent] bg-clip-text font-mono text-xl text-transparent">
-                  Calm Ledger
+                  {APP_NAME}
                 </div>
               </motion.div>
             ) : null}
           </AnimatePresence>
           <button
             onClick={toggle}
-            className={`btn-ghost flex h-10 w-10 shrink-0 items-center justify-center self-start px-0 py-0 text-sm ${collapsed ? 'mx-auto' : ''}`}
+            className={`flex h-11 w-11 shrink-0 items-center justify-center self-start rounded-full border border-[--hairline-strong] bg-[--bg-tertiary] text-[--text-secondary] transition-colors hover:border-[--active-pill-border] hover:text-[--text-primary] ${collapsed ? 'mx-auto' : ''}`}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            {collapsed ? <ChevronRight size={20} strokeWidth={2.25} /> : <ChevronLeft size={20} strokeWidth={2.25} />}
           </button>
         </div>
         <nav className="space-y-1.5">
@@ -117,6 +128,6 @@ export function Sidebar({ initialCollapsed = false }: { initialCollapsed?: boole
           })}
         </nav>
       </motion.aside>
-    </div>
+    </motion.div>
   );
 }

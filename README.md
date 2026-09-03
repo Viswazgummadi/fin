@@ -1,4 +1,4 @@
-# Calm Ledger
+# Ledgr
 
 ## Local development
 1. Copy `.env.example` to `.env.local`

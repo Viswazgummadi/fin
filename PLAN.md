@@ -1,4 +1,4 @@
-# Calm Ledger — Rebuild Master Plan
+# Ledgr — Rebuild Master Plan
 
 > **This is the canonical resume file.** A fresh session should read this file first, and only this file, before touching code. It tells you exactly what's done, what decisions are already settled (don't re-litigate them), and the next concrete action.
 
@@ -10,7 +10,7 @@ This plan supersedes the old `plan.md`/`stages.md` (generic AI-drafted feature l
 
 ## 1. Resume Here
 
-**P0-P6 are all done and merged to `main`.** Nothing is currently dispatched. Next up: P7 (data model additions — none concretely scoped yet, see §4) and P8 (polish pass), or address the deferred items noted throughout §4's phase sections (per-category sparklines, custom date ranges, drag-and-drop widget reordering, etc.) if any of them now earn their place. Pick whichever the user asks for, or ask if unclear — there's no single obvious next phase the way there was through P6.
+**P0-P6.5 are all done and merged to `main` and pushed to `origin/main`.** Nothing is currently dispatched. P6.5 (§4) was a first real-world feedback round after the user tested the deployed app on their phone — it found and fixed a genuinely significant bug (every route's loading state double-nested the whole app shell), plus sidebar/naming/mobile-perf fixes. Next up: more feedback from continued manual testing (most likely), or P7 (data model additions — none concretely scoped yet) / P8 (polish pass) / the deferred items noted throughout §4's phase sections, if the user asks for those instead.
 
 How to resume in a new session:
 1. Read this file top to bottom (it's short).
@@ -27,7 +27,7 @@ How to resume in a new session:
 - **New dependencies:** `framer-motion` (motion/springs/page transitions), `lucide-react` (icon set, tree-shakeable). Charts are **hand-built SVG components** (`components/charts/*`), not a third-party chart library — full control over the glass look, no bundle bloat, no theming fights.
 - **Git workflow:** commit locally after each completed phase, with a clear message. No pushes unless asked.
 - **Analysis is the flagship section.** It gets built right after the shell + chart primitives exist (P3), ahead of restyling every CRUD screen.
-- **App name stays "Calm Ledger"** (already renamed in a recent session) — not revisiting naming.
+- **App name is "Ledgr"** (single source of truth: `lib/brand.ts`'s `APP_NAME`). Revised 2026-09-03 from "Calm Ledger" — the user asked for something short, 4-5 letters, and didn't have a specific name in mind. Picked "Ledgr" (drop-vowel modern-fintech naming, keeps the "ledger" meaning). If this needs to change again, it's one constant to edit, not a repo-wide find/replace — every surface (`Sidebar`, `AppShell`, login page, `<title>`/manifest) imports from `lib/brand.ts`.
 
 ## 3. Architecture snapshot (as of rebuild kickoff)
 
@@ -158,6 +158,18 @@ Deferred: didn't touch `QuickSpendSettings.tsx` (used by `manage/page.tsx`) — 
 
 Verified visually across all 10 screens + Manage/More in both themes via the same temporary-preview-route + headless-Chromium workflow as P1-P3 (`app/login/preview/p6/*`, deleted before commit) — mock data for the 7 components that accept props directly, and small preview-only mirror components (also deleted) for `CalendarClient`/`WhatHappenedClient` since those fetch via `useQuery`+Supabase internally with no data props and this environment has no Supabase credentials configured.
 `npm run build`/`lint` pass.
+
+### P6.5 — First real-world feedback pass ✅
+The user deployed and manually tested on a real phone browser after P0-P6 landed. This surfaced one significant real bug that no amount of mock-data visual QA could have caught (explained below), plus several concrete preference-driven fixes.
+
+- [x] **Root-caused and fixed a real, high-impact bug: every route's `loading.tsx` double-nested the entire app shell.** `RouteLoading` (used by all 7 `loading.tsx` files — transactions/manage/analysis/dashboard/more/settings/calendar) wrapped itself in `<AppShell>`. That was correct pre-P1, when every page wrapped itself in its own `AppShell`. P1 moved `AppShell` into the persistent `app/(app)/layout.tsx` so the shell survives navigation — but `RouteLoading` was never updated, so from P1 onward, any time a route's data took any perceptible time to load (i.e. on every real Supabase round-trip, especially on mobile), the Suspense fallback rendered a **second, nested** sidebar/header/mobile-dock inside the first. This is exactly what the user saw as "huge empty space at the top" on Transactions/Analysis/Manage/Settings, and almost certainly a major contributor to the "immature"/laggy feeling of navigating — two overlapping sticky headers, two sets of padding, two `PageTransition` animations firing at once. Invisible in every prior visual-QA pass because those all used mock data that resolved instantly, so the loading state never actually rendered. Fixed by removing the `<AppShell>` wrap from `RouteLoading` — it now just returns the skeleton content, since the persistent layout already provides the shell. Verified by forcing an artificial multi-second delay on a test route and confirming exactly one shell renders during the wait (see `PROGRESS.md` for the repro method).
+- [x] Sidebar collapse toggle: was a bare 16px chevron in a fully transparent ghost button — bumped to a 20px icon in a clearly-bounded 44px circular button (visible border + background) so it reads as an obvious tappable control, not just small.
+- [x] Sidebar collapse/expand animation: the outer spacer `div` (CSS width transition, 300ms ease) and the actual floating panel (framer-motion `layout` prop *plus* a directly-set inline `style.width`) were two different, unsynchronized animation mechanisms driving what should be one movement — this is what read as janky/"immature." Now both the spacer and the panel are `motion.div`/`motion.aside` sharing one spring config (`stiffness: 300, damping: 30`), so they move in lockstep.
+- [x] Renamed the app from "Calm Ledger" to **Ledgr** — user asked for something short (4-5 letters) with no specific name in mind. Centralized as `APP_NAME`/`APP_TAGLINE` in new `lib/brand.ts`, imported everywhere the name appears (`Sidebar`, `AppShell` mobile header, login page, root `<title>`/metadata, `manifest.webmanifest`, `README.md`) instead of being hardcoded per-file — a future rename is one constant, not a grep-and-replace.
+- [x] Mobile performance: added a `@media (max-width: 767px)` rule that shrinks the `.ambient-field`'s blur radius and disables its drift animation. Backdrop-filter cost scales with blur radius and this is a `position: fixed`, full-viewport, continuously-animating element that every glass panel's backdrop-filter has to resample on every scroll frame — the single highest-leverage, lowest-risk thing to cut back for phone scroll smoothness without changing the desktop look.
+- [x] Re-verified: build/lint clean, no console errors through sidebar collapse/expand interaction, real mobile-viewport screenshots confirm the bottom dock/FAB correctly stay pinned during actual scroll (an earlier `fullPage`-mode screenshot made them look like they overlapped content mid-page — that was a Playwright full-page-capture artifact with `position: fixed` elements, not a real bug; a normal-viewport screenshot showed it was fine).
+
+Not changed: no evidence of a bundle-size or animation-count problem beyond the two fixes above — the double-shell bug was severe enough on its own to plausibly explain the full cluster of complaints (empty space, janky transitions, "laggy," worse on phone). If lag persists after this, the next things to instrument are actual Supabase query latency from Vercel's region and whether `export const dynamic = 'force-dynamic'` (used on most routes, forcing a fresh SSR round-trip with no caching every time) is worth relaxing for any of them — deliberately not touched here since it's a real behavior tradeoff (fresher data vs. speed), not a bug.
 
 ### P7 — Data model additions ⬜
 Concrete additions TBD when we get here (don't design prematurely). Candidates noted during P3 if analysis needs new columns/tables (e.g. saved analysis views/filters). Additive migrations only, next file is `0006_*.sql`.

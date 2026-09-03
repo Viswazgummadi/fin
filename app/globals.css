@@ -515,6 +515,20 @@ a:focus-visible {
   }
 }
 
+/* Mobile GPUs pay for blur roughly proportional to radius, and this is a fixed,
+   full-viewport element that every glass panel's backdrop-filter has to resample
+   on every scroll frame. Smaller/cheaper here specifically to keep scrolling smooth
+   on phones — the animated drift is also the one continuously-repainting element
+   on the page, so it's the highest-leverage thing to cut back for "don't lag on mobile". */
+@media (max-width: 767px) {
+  .ambient-field::before,
+  .ambient-field::after,
+  .ambient-field-spot {
+    animation: none !important;
+    filter: blur(70px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

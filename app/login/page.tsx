@@ -1,4 +1,5 @@
 import { LoginForm } from '../../components/LoginForm';
+import { APP_NAME } from '../../lib/brand';
 
 export default function LoginPage() {
   return (
@@ -6,7 +7,7 @@ export default function LoginPage() {
       <div className="glass-2 w-full max-w-md p-7 fade-up">
         <div className="kicker">Private finance</div>
         <h1 className="mt-2 bg-gradient-to-r from-[--text-primary] to-[--accent] bg-clip-text font-mono text-2xl text-transparent">
-          Calm Ledger
+          {APP_NAME}
         </h1>
         <p className="mt-2 text-sm text-[--text-secondary]">Sign in with your private account.</p>
         <LoginForm />

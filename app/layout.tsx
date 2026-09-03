@@ -5,6 +5,7 @@ import Script from 'next/script';
 import { PWARegister } from '../components/PWARegister';
 import { Providers } from '../components/Providers';
 import { THEME_STORAGE_KEY } from '../components/ThemeToggle';
+import { APP_NAME, APP_TAGLINE } from '../lib/brand';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -19,8 +20,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Calm Ledger',
-  description: 'Private personal finance, simplified.',
+  title: APP_NAME,
+  description: APP_TAGLINE,
   manifest: '/manifest.webmanifest',
 };
 

@@ -1,10 +1,10 @@
 {
-  "name": "Calm Ledger",
-  "short_name": "Ledger",
+  "name": "Ledgr",
+  "short_name": "Ledgr",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#0f0f10",
-  "theme_color": "#0f0f10",
+  "background_color": "#050507",
+  "theme_color": "#050507",
   "icons": [
     {
       "src": "/icon.svg",

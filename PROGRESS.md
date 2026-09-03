@@ -1,3 +1,19 @@
+### Session 36g — 2026-09-03 (P6.5: first real-world feedback pass)
+Phase worked on: P6.5 — first real-world feedback pass (now complete; see `PLAN.md` §4)
+Completed:
+- User deployed (pushed to `origin/main`, Vercel auto-deploys) and manually tested on a phone browser. Feedback: sidebar collapse icon too small, collapse animation feels "immature"/not smooth, huge empty space at the top of Transactions/Analysis/Manage/Settings, wants the app renamed to something short (4-5 letters), wants fast loading with no lag, wants phone-browser compatibility verified.
+- **Root-caused the empty-space complaint**: `RouteLoading` (the shared `loading.tsx` fallback used by 7 routes) wrapped itself in `<AppShell>`, which was correct before P1 but became a bug the moment P1 moved `AppShell` into the persistent `app/(app)/layout.tsx` — every real Suspense-triggered loading state was rendering a second, nested shell (sidebar/header/dock again) inside the first. Never caught before now because every prior visual-QA pass used mock data that resolved instantly, so `loading.tsx` never actually rendered during any of that testing. This is very likely also the dominant cause of the "immature transition"/"laggy" complaints, not just the empty-space one — two overlapping sticky headers and two `PageTransition` animations firing together would read exactly like that. Fixed by removing the `AppShell` wrap from `RouteLoading`. Verified the fix by building a temporary route with an artificial multi-second server delay and confirming exactly one shell renders during the wait — screenshotted, then deleted before commit.
+- Fixed the sidebar collapse toggle: 16px icon in a fully transparent ghost button → 20px icon in a clearly-bounded 44px circular button.
+- Fixed the collapse/expand animation: the spacer div and the floating panel were animated by two unsynchronized mechanisms (a CSS transition vs. framer-motion's `layout` prop plus a conflicting inline `style.width`) — now both are `motion` elements sharing one spring config, so they move in lockstep.
+- Renamed the app to **Ledgr**, centralized as `lib/brand.ts`'s `APP_NAME`/`APP_TAGLINE` instead of being hardcoded per-file (`Sidebar`, `AppShell`, login page, root metadata, `manifest.webmanifest`, `README.md` all updated to import it).
+- Added a mobile-only (`max-width: 767px`) reduction of the `.ambient-field` background's blur radius and disabled its drift animation — backdrop-filter cost scales with blur radius, and it's a fixed full-viewport element every glass panel has to resample on scroll; this is the highest-leverage, lowest-risk mobile scroll-smoothness fix available without changing the desktop look.
+- Re-verified: `npm run build`/`lint` clean, no console errors through sidebar interaction, real (non-`fullPage`) mobile-viewport screenshots confirm the bottom dock/FAB correctly stay pinned to the viewport during actual scrolling — an earlier `fullPage`-mode screenshot made them look like they overlapped page content mid-scroll, but that turned out to be a Playwright full-page-capture artifact with `position: fixed` elements, not a real bug.
+- Pushed to `origin/main` (was already pushed once after P6.5's predecessor; this session's fixes are commit-ready, see next step).
+Broken / TODO:
+- Nothing known broken. If lag persists after this, next things to check are actual Supabase query latency from Vercel's region, and whether `export const dynamic = 'force-dynamic'` (used on most routes) is worth relaxing anywhere — deliberately not touched this round since it's a real freshness-vs-speed tradeoff, not a bug.
+Next exact step:
+- Commit and push this session's fixes; user will test again on their phone.
+
 ### Session 36f — 2026-09-03 (post-merge integration check, coordinating session)
 Phase worked on: none new — a final cross-phase visual QA pass after merging P4/P5/P6, since each agent only verified its own phase in isolation
 Completed:

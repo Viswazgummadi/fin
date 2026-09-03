@@ -6,6 +6,7 @@ import { MobileDock } from './MobileDock';
 import { CommandPalette } from './CommandPalette';
 import { PageTransition } from './PageTransition';
 import { SyncManager } from './SyncManager';
+import { APP_NAME } from '../lib/brand';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const collapsed = cookies().get('fin.sidebar.collapsed')?.value === 'true';
@@ -19,7 +20,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-3 z-30 mx-3 sm:mx-4 lg:mx-6">
           <div className="glass-2 mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
             <Link href="/" className="min-w-0 lg:hidden">
-              <div className="truncate font-mono text-sm font-medium tracking-wide text-[--text-primary]">Calm Ledger</div>
+              <div className="truncate font-mono text-sm font-medium tracking-wide text-[--text-primary]">{APP_NAME}</div>
             </Link>
             <div className="ml-auto">
               <HeaderActions />
