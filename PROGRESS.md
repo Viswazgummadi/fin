@@ -1,3 +1,16 @@
+### Session 36c — 2026-09-03 (P2: chart primitive library)
+Phase worked on: P2 — Chart primitive library (now complete, see `PLAN.md` §4)
+Completed:
+- Built `lib/charts.ts` (Catmull-Rom path smoothing, point normalization, arc math, categorical palette, heatmap bucketing) and six chart components in `components/charts/`: `Sparkline`, `AreaChart`, `DonutChart`, `BarChart` (vertical + horizontal), `HeatmapCalendar`, `RadialProgress`
+- `DonutChart` replaces the old conic-gradient hack with stacked animated `<circle>` segments (stroke-dasharray/offset) — enables per-segment hover/click and clean animation
+- Added a `--track` token after the first visual pass showed ring tracks were nearly invisible against `--hairline`
+- Verified all six visually the same way as P1: temporary `/login/preview` route + headless Chromium, deleted before commit. Chased what looked like a missing-bars bug in the vertical bar chart (screenshot only seemed to show 5 of 7 bars) — turned out to be a misread of the flattened screenshot, confirmed via a DOM query that all 7 render correctly. No code change needed there.
+- `npm run build` and `npm run lint` pass
+Broken / TODO:
+- None of these primitives are wired into real screens yet — that's P3 (Analysis) and P4 (Dashboard)
+Next exact step:
+- Start P3: rebuild `AnalysisClient.tsx` on these primitives, starting with the Overview subsection
+
 ### Session 36b — 2026-09-03 (P1: shell rebuild)
 Phase worked on: P1 — Design tokens + shell rebuild (now complete, see `PLAN.md` §4)
 Completed:

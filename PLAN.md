@@ -10,9 +10,9 @@ This plan supersedes the old `plan.md`/`stages.md` (generic AI-drafted feature l
 
 ## 1. Resume Here
 
-**Current phase: P2 — Chart primitive library (not started)**
+**Current phase: P3 — Analysis section rebuild (not started, the flagship phase)**
 
-Next concrete action: build `components/charts/Sparkline.tsx` first (simplest, reused everywhere), then `AreaChart`, `DonutChart`, `BarChart`, `HeatmapCalendar`, `RadialProgress` — see P2 checklist below.
+Next concrete action: rebuild `components/AnalysisClient.tsx` on the new chart primitives from `components/charts/`. Start with the Overview subsection (net worth/cashflow), then work through the P3 build order in §5. The old `AnalysisClient.tsx` (conic-gradient donuts, plain month grid) is still live in production right now — this phase replaces it.
 
 How to resume in a new session:
 1. Read this file top to bottom (it's short).
@@ -66,14 +66,22 @@ Legend: ⬜ not started · 🟨 in progress · ✅ done
 
 **Note for later phases:** many CRUD pages (`GoalsClient`, `LimitsClient`, `PeopleClient`, `TagsClient`, etc.) still hand-roll their own `<h1 className="text-3xl font-semibold">` page headers instead of using the shared `.page-header`/`.page-title` classes. They still render correctly with the new tokens (the underlying CSS vars are unchanged), just not yet visually consistent with pages that do use `.page-header`. P6 should normalize this.
 
-### P2 — Chart primitive library ⬜
-Hand-built, SVG + framer-motion, styled to the glass system. Each is a real component with props, not one-off inline markup.
-- [ ] `components/charts/Sparkline.tsx`
-- [ ] `components/charts/AreaChart.tsx` (gradient fill, animated draw-in)
-- [ ] `components/charts/DonutChart.tsx` (replace conic-gradient hack, animated arcs, drill-down capable)
-- [ ] `components/charts/BarChart.tsx` (vertical + horizontal variants)
-- [ ] `components/charts/HeatmapCalendar.tsx` (GitHub-style daily intensity grid)
-- [ ] `components/charts/RadialProgress.tsx` (budget/goal rings, liquid-fill animation)
+### P2 — Chart primitive library ✅
+Hand-built, SVG + framer-motion, styled to the glass system. All live in `components/charts/`, sharing geometry helpers from `lib/charts.ts` (Catmull-Rom path smoothing, point normalization, arc/circumference math, categorical `--chart-1..8` palette, heatmap intensity bucketing).
+- [x] `Sparkline.tsx` — small inline line + optional gradient fill, animated draw-in via `pathLength`
+- [x] `AreaChart.tsx` — responsive (ResizeObserver-based), smoothed curve, gradient fill, hover crosshair + tooltip, sparse x-axis labels
+- [x] `DonutChart.tsx` — multi-segment ring using stacked `<circle>` stroke-dasharray/offset (not conic-gradient), animated per-segment, hover to highlight + dim others, click-through via `onSliceClick`, legend chips
+- [x] `BarChart.tsx` — one component, `orientation: 'vertical' | 'horizontal'`, animated bar grow-in, hover value labels (vertical), inline value (horizontal)
+- [x] `HeatmapCalendar.tsx` — GitHub-style week-column grid, configurable week count/end date, hover tooltip, `onDayClick`
+- [x] `RadialProgress.tsx` — single ring, value can exceed 1.0 to signal over-budget (color swaps to `--danger`)
+- [x] Added `--track` token (`rgba(255,255,255,0.1)`) after the first visual pass showed ring/donut unfilled tracks were nearly invisible against `--hairline` (0.08) — rings need a bit more contrast than a border does
+- [x] Verified all six visually via the same temporary-preview-route + headless-Chromium workflow as P1, then deleted the route
+- [x] `npm run build` and `npm run lint` pass
+
+**Notes for P3 (which consumes these):**
+- None of these are wired into `AnalysisClient`/`DashboardClient` yet — P2 only built and visually verified the primitives in isolation. That wiring is P3/P4.
+- All chart components are client components (`"use client"`) — fine to use directly from `AnalysisClient`/`DashboardClient` (already client components), but if a *server* component ever needs to render one, don't pass inline functions as props to it from a server component (React will throw "Functions cannot be passed directly to Client Components") — pass primitive data and let the client component define its own formatters, the way `PreviewShowcase` had to during P2's own verification.
+- `DonutChart` renders butt-cap segments when there's more than one slice (rounded caps only for a single-slice ring) — intentional, avoids visual gaps between adjacent segments.
 
 ### P3 — Analysis section rebuild (flagship) ⬜
 See §5 for the full feature backlog. Build order: Overview → Categories drill-down → Tags → Calendar heatmap → Comparisons (MoM/YoY) → Narrative insights → People/Goals tie-in.
