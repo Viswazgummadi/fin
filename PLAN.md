@@ -189,7 +189,7 @@ Multi-agent execution started 2026-09-03 per the user's request. Each row is one
 
 | Phase | Status | Branch / worktree | Notes |
 |---|---|---|---|
-| P4 Dashboard | done, not yet merged | `worktree-agent-ae8e45a83c2e4c501` (`.claude/worktrees/agent-ae8e45a83c2e4c501`) | Rebuilt `DashboardClient.tsx`/`WidgetManager.tsx` on chart primitives; fixed a real widget-reorder-doesn't-persist bug in `lib/dashboard.ts`. Worktree started stale (pre-P1, at `0b74632`) and was rebased onto `main` before work began — do the same check if resuming any dispatched worktree that looks like it's missing recent `main` work. `npm run build`/`lint` pass on this branch alone; still needs a build/lint check *after* merging with any concurrent P5/P6 changes, per the process below. |
+| P4 Dashboard | merged | `worktree-agent-ae8e45a83c2e4c501` (one conflict in `PROGRESS.md` — both P4 and P6 appended a "Session 36e" entry from their own worktrees; resolved by keeping both, P6's first — re-verified build+lint on merged `main`) | Rebuilt `DashboardClient.tsx`/`WidgetManager.tsx` on chart primitives; fixed a real widget-reorder-doesn't-persist bug in `lib/dashboard.ts`. Worktree started stale (pre-P1, at `0b74632`) and was rebased onto `main` before work began — do the same check if resuming any dispatched worktree that looks like it's missing recent `main` work. |
 | P5 Manual entry UX | dispatched | _fill in when launched_ | Tag wiring first, then restyle |
 | P6 CRUD screens | merged | `worktree-agent-a0717a34abd80656e` (clean merge, no conflicts; re-verified build+lint on merged `main`) | Visual pass across 10 screens + Manage/More; Limits also gained real spent-vs-budget tracking (see P6 notes) |
 
