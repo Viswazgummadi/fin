@@ -179,7 +179,7 @@ Multi-agent execution started 2026-09-03 per the user's request. Each row is one
 |---|---|---|---|
 | P4 Dashboard | dispatched | _fill in when launched_ | Rebuild `DashboardClient.tsx` on chart primitives |
 | P5 Manual entry UX | dispatched | _fill in when launched_ | Tag wiring first, then restyle |
-| P6 CRUD screens | done (worktree not yet merged to main) | `worktree-agent-a0717a34abd80656e` | Visual pass across 10 screens + Manage/More; Limits also gained real spent-vs-budget tracking (see P6 notes) |
+| P6 CRUD screens | merged | `worktree-agent-a0717a34abd80656e` (clean merge, no conflicts; re-verified build+lint on merged `main`) | Visual pass across 10 screens + Manage/More; Limits also gained real spent-vs-budget tracking (see P6 notes) |
 
 When an agent finishes: merge its worktree branch, run `npm run build`/`lint` on the merged result yourself (an agent's own green build doesn't guarantee it still builds after merging with other concurrent agents' changes), update the phase's checklist in §4 to ✅ with the same level of detail as P1-P3 above, update this table's status to `merged`, and commit.
 
