@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 import type { Account } from '../lib/types';
 import {
@@ -142,47 +143,48 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="mb-2 block text-xs uppercase tracking-wide text-[--text-muted]">Quick templates</label>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {templates.filter(t => t.favorite).map((template) => (
-            <button
-              key={template.id}
-              type="button"
-              onClick={() => {
-                setNote(template.note);
-                setAmount(String(template.amount));
-              }}
-              className="rounded-[--radius] border border-[--border] bg-[--bg-tertiary] px-3 py-2 text-left hover:border-[--accent]"
-            >
-              <div className="text-sm font-medium">{template.label}</div>
-              <div className="text-xs text-[--text-muted]">{template.note}</div>
-              <div className="mt-1 font-mono text-sm">₹{template.amount}</div>
-            </button>
-          ))}
+      {templates.filter((t) => t.favorite).length > 0 ? (
+        <div>
+          <div className="kicker mb-2">Favorites</div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {templates.filter((t) => t.favorite).map((template) => (
+              <motion.button
+                key={template.id}
+                type="button"
+                whileTap={{ scale: 0.97 }}
+                onClick={() => {
+                  setNote(template.note);
+                  setAmount(String(template.amount));
+                }}
+                className="data-row px-3 py-2 text-left"
+              >
+                <div className="text-sm font-medium text-[--text-primary]">{template.label}</div>
+                <div className="text-xs text-[--text-muted]">{template.note}</div>
+                <div className="mt-1 font-mono text-sm text-[--text-secondary]">₹{template.amount}</div>
+              </motion.button>
+            ))}
+          </div>
         </div>
-        {templates.filter(t => t.favorite).length > 0 && (
-          <div className="mt-3 text-xs text-[--text-muted]">Favorites shown above</div>
-        )}
-      </div>
+      ) : null}
 
       <div>
-        <label className="mb-2 block text-xs uppercase tracking-wide text-[--text-muted]">All templates</label>
+        <div className="kicker mb-2">All templates</div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {templates.filter(t => !t.favorite).map((template) => (
-            <button
+          {templates.filter((t) => !t.favorite).map((template) => (
+            <motion.button
               key={template.id}
               type="button"
+              whileTap={{ scale: 0.97 }}
               onClick={() => {
                 setNote(template.note);
                 setAmount(String(template.amount));
               }}
-              className="rounded-[--radius] border border-[--border] bg-[--bg-tertiary] px-3 py-2 text-left hover:border-[--accent]"
+              className="data-row px-3 py-2 text-left"
             >
-              <div className="text-sm font-medium">{template.label}</div>
+              <div className="text-sm font-medium text-[--text-primary]">{template.label}</div>
               <div className="text-xs text-[--text-muted]">{template.note}</div>
-              <div className="mt-1 font-mono text-sm">₹{template.amount}</div>
-            </button>
+              <div className="mt-1 font-mono text-sm text-[--text-secondary]">₹{template.amount}</div>
+            </motion.button>
           ))}
         </div>
       </div>
@@ -194,7 +196,7 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
           type="text"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="w-full rounded-[--radius] border border-[--border] bg-[--bg-tertiary] px-4 py-3 outline-none"
+          className="field"
           placeholder="Metro / office one way"
         />
         <input
@@ -202,13 +204,13 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
           inputMode="decimal"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="w-full rounded-[--radius] border border-[--border] bg-[--bg-tertiary] px-4 py-3 text-right text-2xl font-mono outline-none"
+          className="field text-right text-2xl font-mono"
           placeholder="0.00"
           required
         />
       </div>
 
-      <div className="rounded-[--radius] border border-[--border] bg-[--bg-primary]/40 px-3 py-3 text-sm text-[--text-secondary]">
+      <div className="surface-soft px-3 py-3 text-sm text-[--text-secondary]">
         Quick add saves a small <span className="font-medium text-[--text-primary]">expense</span>{' '}
         {accountId && accounts?.length ? (
           <>
@@ -232,12 +234,8 @@ export function QuickAdd({ onSuccess }: { onSuccess?: () => void }) {
       ) : null}
       {status ? <div className="text-sm text-[--text-secondary]">{status}</div> : null}
 
-      <button
-        type="submit"
-        disabled={mutation.isPending}
-        className="w-full rounded-[--radius] bg-[--accent] px-4 py-3 font-semibold text-[--bg-primary]"
-      >
-        {mutation.isPending ? 'Saving...' : 'Done'}
+      <button type="submit" disabled={mutation.isPending} className="btn-primary w-full">
+        {mutation.isPending ? 'Saving…' : 'Done'}
       </button>
     </form>
   );

@@ -25,6 +25,8 @@ export type OfflineOutboxItem =
       kind: 'transaction-insert';
       localId?: string;
       payload: TransactionInsertPayload;
+      /** Tag ids selected at save time. Applied once the queued insert resolves to a real transaction id. */
+      tagIds?: string[];
       createdAt: string;
     }
   | {
@@ -32,6 +34,8 @@ export type OfflineOutboxItem =
       kind: 'transaction-update';
       transactionId: string;
       payload: TransactionUpdatePayload;
+      /** When present, replaces the transaction's tags entirely (delete-then-insert) once the update flushes. */
+      tagIds?: string[];
       createdAt: string;
     }
   | {
@@ -129,6 +133,23 @@ export async function fetchRemoteQuickSpendConfig(supabase: SupabaseClient) {
   return (data?.quick_spend_config as QuickSpendConfig | null | undefined) ?? null;
 }
 
+/**
+ * Replaces a transaction's tag set with `tagIds` (delete-then-insert; fine at this data
+ * scale, see PLAN.md P5 notes). Failures here are swallowed rather than thrown — the
+ * transaction itself already synced successfully, so a tag hiccup shouldn't re-queue
+ * the whole outbox item and risk a duplicate transaction insert on retry.
+ */
+async function applyTransactionTags(supabase: SupabaseClient, transactionId: string, tagIds: string[]) {
+  try {
+    await supabase.from('transaction_tags').delete().eq('transaction_id', transactionId);
+    if (tagIds.length) {
+      await supabase.from('transaction_tags').insert(tagIds.map((tagId) => ({ transaction_id: transactionId, tag_id: tagId })));
+    }
+  } catch (error) {
+    console.error('Failed to sync tags for transaction', transactionId, error);
+  }
+}
+
 export async function flushOfflineOutbox(supabase: SupabaseClient) {
   const queue = readOfflineOutbox();
   if (!queue.length) return { flushed: 0, remaining: [] as OfflineOutboxItem[] };
@@ -139,8 +160,11 @@ export async function flushOfflineOutbox(supabase: SupabaseClient) {
   for (const item of queue) {
     try {
       if (item.kind === 'transaction-insert') {
-        const { error } = await supabase.from('transactions').insert(item.payload);
+        const { data, error } = await supabase.from('transactions').insert(item.payload).select('id').single();
         if (error) throw error;
+        if (item.tagIds?.length && data?.id) {
+          await applyTransactionTags(supabase, data.id as string, item.tagIds);
+        }
       }
 
       if (item.kind === 'transaction-update') {
@@ -149,6 +173,9 @@ export async function flushOfflineOutbox(supabase: SupabaseClient) {
           .update({ ...item.payload, updated_at: item.payload.updated_at ?? new Date().toISOString() })
           .eq('id', item.transactionId);
         if (error) throw error;
+        if (item.tagIds) {
+          await applyTransactionTags(supabase, item.transactionId, item.tagIds);
+        }
       }
 
       if (item.kind === 'transaction-soft-delete') {
