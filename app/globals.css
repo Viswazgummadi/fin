@@ -360,9 +360,18 @@ a:focus-visible {
    specular top edge + deep contact shadow so it reads as physical glass
    rather than a flat bordered box. */
 
+/* No `position` here on purpose — this class gets combined with Tailwind's `absolute` on
+   the transactions filter popovers (TransactionsClient.tsx) and `fixed` on the sidebar
+   (Sidebar.tsx), and a plain CSS rule declared after `@tailwind utilities` beats a utility
+   class of equal specificity by source order, regardless of the HTML class order.
+   `position: relative` here silently downgraded those to `relative`, so the popovers laid
+   out in normal flow (pushing/reflowing everything after them in their flex row) instead of
+   floating over the page, and the sidebar scrolled away instead of staying fixed — both
+   found via user reports and confirmed with computed-style inspection. If a future consumer
+   needs a position value from this class, set it as a Tailwind utility on that specific
+   element instead of adding it back here. */
 .glass-1,
 .surface-card {
-  position: relative;
   border: 1px solid var(--hairline-strong);
   background: var(--glass-1-bg);
   backdrop-filter: blur(24px) saturate(160%);

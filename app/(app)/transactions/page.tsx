@@ -23,7 +23,7 @@ export default async function TransactionsPage() {
     <div className="space-y-6 fade-up">
       <div className="page-header">
         <h1 className="page-title">Transactions</h1>
-        <p className="page-copy">Add, search, and filter — everything at hand, one tap away.</p>
+        <p className="page-copy">Add and filter — everything at hand, one tap away.</p>
       </div>
       {!accounts.length || !categories.length ? <SetupStarterData /> : null}
       <TransactionsClient initialTransactions={transactions} initialMonthKey={initialMonthKey} accounts={accounts} categories={categories} />

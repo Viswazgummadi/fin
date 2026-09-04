@@ -14,8 +14,8 @@ import {
   History,
   ListChecks,
   Pencil,
+  Plus,
   RotateCcw,
-  Search as SearchIcon,
   SlidersHorizontal,
   Square,
   Tag as TagIcon,
@@ -37,7 +37,7 @@ import { queryKeys } from '../lib/query-keys';
 import { enqueueOfflineOutboxItem, isLocalOnlyTransactionId } from '../lib/offline-sync';
 import { TransactionSuggestions } from './TransactionSuggestions';
 
-type PlannedFilter = 'all' | 'planned' | 'unplanned';
+type PopoverKey = 'month' | 'filters' | null;
 
 const TRANSACTION_SELECT = 'id,account_id,transfer_account_id,type,amount,category_id,note,occurred_at,is_planned,deleted_at';
 
@@ -63,22 +63,23 @@ export function TransactionsClient({
   const [type, setType] = useState<Transaction['type']>('expense');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
-  const [isPlanned, setIsPlanned] = useState(true);
+  const [noteOpen, setNoteOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
   const [status, setStatus] = useState('');
   const [recentlyDeleted, setRecentlyDeleted] = useState<Transaction[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
-  const [search, setSearch] = useState('');
   const [filterAccountId, setFilterAccountId] = useState('all');
   const [filterCategoryId, setFilterCategoryId] = useState('all');
   const [filterType, setFilterType] = useState<'all' | Transaction['type']>('all');
-  const [filterPlanned, setFilterPlanned] = useState<PlannedFilter>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [allTime, setAllTime] = useState(false);
+  const [openPopover, setOpenPopover] = useState<PopoverKey>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const formRef = useRef<HTMLDivElement>(null);
 
   const categoryOptions = useMemo(() => categories.filter((c) => c.kind === 'both' || c.kind === type), [categories, type]);
   const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
@@ -165,31 +166,16 @@ export function TransactionsClient({
   });
 
   const filteredTransactions = useMemo(() => {
-    const q = search.trim().toLowerCase();
     return transactions.filter((txn) => {
       if (filterType !== 'all' && txn.type !== filterType) return false;
       if (filterAccountId !== 'all' && txn.account_id !== filterAccountId) return false;
       if (filterCategoryId !== 'all' && txn.category_id !== filterCategoryId) return false;
-      if (filterPlanned === 'planned' && txn.is_planned === false) return false;
-      if (filterPlanned === 'unplanned' && txn.is_planned !== false) return false;
       const day = toDateKey(txn.occurred_at);
       if (dateFrom && day < dateFrom) return false;
       if (dateTo && day > dateTo) return false;
-      if (!q) return true;
-      const haystack = [
-        txn.note,
-        txn.type,
-        txn.amount,
-        accountMap.get(txn.account_id),
-        categoryMap.get(txn.category_id ?? ''),
-        txn.transfer_account_id ? accountMap.get(txn.transfer_account_id) : '',
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(q);
+      return true;
     });
-  }, [transactions, filterType, filterAccountId, filterCategoryId, filterPlanned, dateFrom, dateTo, search, accountMap, categoryMap]);
+  }, [transactions, filterType, filterAccountId, filterCategoryId, dateFrom, dateTo]);
 
   const visibleStats = useMemo(() => {
     const income = filteredTransactions.filter((txn) => txn.type === 'income').reduce((sum, txn) => sum + Number(txn.amount || 0), 0);
@@ -202,13 +188,12 @@ export function TransactionsClient({
     return [
       filterAccountId !== 'all',
       filterCategoryId !== 'all',
-      filterPlanned !== 'all',
       Boolean(dateFrom),
       Boolean(dateTo),
     ].filter(Boolean).length;
-  }, [filterAccountId, filterCategoryId, filterPlanned, dateFrom, dateTo]);
+  }, [filterAccountId, filterCategoryId, dateFrom, dateTo]);
 
-  const activeFilterCount = extraFilterCount + (filterType !== 'all' ? 1 : 0) + (search ? 1 : 0) + (allTime ? 1 : 0);
+  const activeFilterCount = extraFilterCount + (filterType !== 'all' ? 1 : 0) + (allTime ? 1 : 0);
 
   const setWindowTransactions = (updater: (current: Transaction[]) => Transaction[]) => {
     queryClient.setQueryData<Transaction[]>(transactionsQueryKey, (current) => updater(current ?? []));
@@ -250,12 +235,17 @@ export function TransactionsClient({
     setEditingId(null);
     setAmount('');
     setNote('');
+    setNoteOpen(false);
     setType('expense');
-    setIsPlanned(true);
     setCategoryId(categories[0]?.id ?? '');
     setAccountId(accounts[0]?.id ?? '');
     setTransferAccountId(accounts.find((a) => a.id !== accounts[0]?.id)?.id ?? '');
     setSelectedTagIds([]);
+  };
+
+  const closeForm = () => {
+    resetForm();
+    setFormOpen(false);
   };
 
   const addOrUpdateTransaction = async () => {
@@ -285,7 +275,7 @@ export function TransactionsClient({
       amount,
       note: note || null,
       category_id: type === 'transfer' ? null : categoryId || null,
-      is_planned: isPlanned,
+      is_planned: true,
     };
 
     // Tags need a real (already-synced) transaction id to attach to via `transaction_tags`.
@@ -445,8 +435,10 @@ export function TransactionsClient({
     setCategoryId(txn.category_id ?? '');
     setAmount(txn.amount);
     setNote(txn.note ?? '');
-    setIsPlanned(txn.is_planned !== false);
+    setNoteOpen(Boolean(txn.note));
     setSelectedTagIds([]);
+    setFormOpen(true);
+    requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 
     if (isLocalOnlyTransactionId(txn.id)) {
       setStatus('Editing transaction. Tags will be available once this finishes syncing.');
@@ -574,11 +566,9 @@ export function TransactionsClient({
   };
 
   const clearFilters = () => {
-    setSearch('');
     setFilterAccountId('all');
     setFilterCategoryId('all');
     setFilterType('all');
-    setFilterPlanned('all');
     setDateFrom('');
     setDateTo('');
     setAllTime(false);
@@ -598,88 +588,84 @@ export function TransactionsClient({
     setFilterType((current) => (current === value ? 'all' : value));
   };
 
+  const togglePopover = (key: PopoverKey) => setOpenPopover((current) => (current === key ? null : key));
+  const closePopover = () => setOpenPopover(null);
+
   return (
     <div className="space-y-4 fade-up">
       {!selectMode ? <TransactionSuggestions transactions={transactions} categories={categories} /> : null}
 
       {!selectMode ? (
-        <section className="surface-card space-y-3 p-4">
-          <div>
-            <div className="kicker">Manual entry</div>
-            <div className="mt-1 font-semibold">Add or edit transaction</div>
-          </div>
-          <div className="grid gap-3 md:grid-cols-5">
-            <select className="field" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-              {accounts.length ? accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>) : <option value="">No accounts yet</option>}
-            </select>
-            <select className="field" value={type} onChange={(e) => setType(e.target.value as Transaction['type'])}>
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
-              <option value="transfer">Transfer</option>
-            </select>
-            {type === 'transfer' ? (
-              <select className="field" value={transferAccountId} onChange={(e) => setTransferAccountId(e.target.value)}>
-                <option value="">Target account</option>
-                {transferOptions.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
-            ) : (
-              <select className="field" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                {categoryOptions.length ? categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>) : <option value="">No categories</option>}
-              </select>
-            )}
-            <input className="field text-right font-mono" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-            <button onClick={addOrUpdateTransaction} className="btn-primary">{editingId ? 'Update transaction' : 'Add transaction'}</button>
-          </div>
-          <input className="field" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} />
-          <label className="flex items-center gap-2 text-sm text-[--text-secondary]">
-            <input type="checkbox" checked={isPlanned} onChange={(e) => setIsPlanned(e.target.checked)} />
-            Planned transaction
-          </label>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <span className="kicker">Tags</span>
-              {!isEditingLocalTxn && tags.length ? (
-                <Link href="/tags" className="text-xs text-[--accent]">Manage tags</Link>
-              ) : null}
+        <div className="space-y-3">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+            <div className="font-semibold">{windowLabel}</div>
+            <div className="text-sm text-[--text-secondary]">
+              {filteredTransactions.length} shown{isFetching ? ' · refreshing…' : ''} · {formatMoney(visibleStats.expense)} spent · {formatMoney(visibleStats.income)} income
+              {visibleStats.transfers ? ` · ${visibleStats.transfers} transfer${visibleStats.transfers === 1 ? '' : 's'}` : ''}
             </div>
-            {isEditingLocalTxn ? (
-              <p className="text-sm text-[--text-muted]">Tags will be available once this transaction finishes syncing.</p>
-            ) : tags.length ? (
-              <div className="flex flex-wrap gap-2">
-                {tags.map((tag) => {
-                  const active = selectedTagIds.includes(tag.id);
-                  const swatch = tag.color ?? 'var(--accent)';
-                  return (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      onClick={() => toggleTag(tag.id)}
-                      aria-pressed={active}
-                      className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
-                      style={{
-                        borderColor: active ? swatch : 'var(--border)',
-                        background: active ? `${swatch}2e` : 'transparent',
-                        color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        boxShadow: active ? `0 0 0 1px ${swatch}` : 'none',
-                      }}
-                    >
-                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: swatch }} />
-                      {tag.name}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-[--text-muted]">
-                No tags yet — <Link href="/tags" className="text-[--accent]">create some</Link> to organize transactions.
-              </p>
-            )}
           </div>
 
-          {status ? <div className="surface-soft px-3 py-2 text-sm text-[--text-secondary]">{status}</div> : null}
-          {editingId ? <button onClick={resetForm} className="btn-ghost w-fit text-sm">Cancel edit</button> : null}
-        </section>
+          <div className="flex flex-wrap items-center gap-2">
+            <MonthPopover
+              windowLabel={windowLabel}
+              windowMonthKey={windowMonthKey}
+              currentMonthKey={currentMonthKey}
+              allTime={allTime}
+              open={openPopover === 'month'}
+              onToggle={() => togglePopover('month')}
+              onClose={closePopover}
+              onChangeMonth={changeMonth}
+              onShift={(dir) => changeMonth(shiftMonthKey(windowMonthKey, dir))}
+              onToggleAllTime={() => setAllTime((v) => !v)}
+            />
+            <Chip active={filterType === 'expense'} onClick={() => toggleTypeFilter('expense')}>Expense</Chip>
+            <Chip active={filterType === 'income'} onClick={() => toggleTypeFilter('income')}>Income</Chip>
+            <Chip active={filterType === 'transfer'} onClick={() => toggleTypeFilter('transfer')}>Transfer</Chip>
+            <FiltersPopover
+              accounts={accounts}
+              categories={categories}
+              filterAccountId={filterAccountId}
+              setFilterAccountId={setFilterAccountId}
+              filterCategoryId={filterCategoryId}
+              setFilterCategoryId={setFilterCategoryId}
+              dateFrom={dateFrom}
+              setDateFrom={setDateFrom}
+              dateTo={dateTo}
+              setDateTo={setDateTo}
+              activeCount={extraFilterCount}
+              open={openPopover === 'filters'}
+              onToggle={() => togglePopover('filters')}
+              onClose={closePopover}
+            />
+            <Chip active={selectMode} onClick={() => (selectMode ? exitSelectMode() : enterSelectMode())} icon={<ListChecks size={14} />}>
+              Select
+            </Chip>
+            {activeFilterCount ? (
+              <button onClick={clearFilters} className="text-xs text-[--accent] hover:underline">
+                Clear all
+              </button>
+            ) : null}
+
+            <motion.button
+              type="button"
+              onClick={() => (formOpen ? closeForm() : setFormOpen(true))}
+              whileTap={{ scale: 0.92 }}
+              aria-label={formOpen ? 'Close add transaction form' : 'Add transaction'}
+              aria-expanded={formOpen}
+              className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+              style={{
+                background: 'linear-gradient(165deg, rgba(255,255,255,0.18), transparent), var(--accent)',
+                boxShadow: '0 10px 24px rgba(var(--accent-rgb), 0.25)',
+              }}
+            >
+              <motion.span animate={{ rotate: formOpen ? 135 : 0 }} transition={{ duration: 0.2 }} className="flex">
+                <Plus size={18} strokeWidth={2.5} className="text-[--on-accent]" />
+              </motion.span>
+            </motion.button>
+          </div>
+
+          {loadError ? <div className="surface-soft px-3 py-2 text-sm text-[--danger]">{loadError instanceof Error ? loadError.message : 'Could not load this transaction window.'}</div> : null}
+        </div>
       ) : (
         <div className="surface-card flex flex-wrap items-center justify-between gap-3 p-4">
           <div className="text-sm font-medium">
@@ -698,76 +684,122 @@ export function TransactionsClient({
         </div>
       )}
 
-      {!selectMode ? (
-        <div className="space-y-3">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-            <div className="font-semibold">{windowLabel}</div>
-            <div className="text-sm text-[--text-secondary]">
-              {filteredTransactions.length} shown{isFetching ? ' · refreshing…' : ''} · {formatMoney(visibleStats.expense)} spent · {formatMoney(visibleStats.income)} income
-              {visibleStats.transfers ? ` · ${visibleStats.transfers} transfer${visibleStats.transfers === 1 ? '' : 's'}` : ''}
-            </div>
-          </div>
+      <AnimatePresence>
+        {!selectMode && formOpen ? (
+          <motion.div
+            ref={formRef}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <section className="surface-card space-y-3 p-4">
+              <div>
+                <div className="kicker">Manual entry</div>
+                <div className="mt-1 font-semibold">{editingId ? 'Edit transaction' : 'Add transaction'}</div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-5">
+                <select className="field" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+                  {accounts.length ? accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>) : <option value="">No accounts yet</option>}
+                </select>
+                <select className="field" value={type} onChange={(e) => setType(e.target.value as Transaction['type'])}>
+                  <option value="expense">Expense</option>
+                  <option value="income">Income</option>
+                  <option value="transfer">Transfer</option>
+                </select>
+                {type === 'transfer' ? (
+                  <select className="field" value={transferAccountId} onChange={(e) => setTransferAccountId(e.target.value)}>
+                    <option value="">Target account</option>
+                    {transferOptions.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                ) : (
+                  <select className="field" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                    {categoryOptions.length ? categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>) : <option value="">No categories</option>}
+                  </select>
+                )}
+                <input className="field text-right font-mono" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                <button onClick={addOrUpdateTransaction} className="btn-primary whitespace-nowrap">{editingId ? 'Update' : 'Add transaction'}</button>
+              </div>
 
-          <div className="relative">
-            <SearchIcon size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[--text-muted]" />
-            <input
-              className="field pl-9 pr-9"
-              placeholder="Search notes, amounts, accounts, categories…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search ? (
-              <button
-                onClick={() => setSearch('')}
-                aria-label="Clear search"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-[--text-muted] hover:text-[--text-primary]"
-              >
-                <X size={14} />
-              </button>
-            ) : null}
-          </div>
+              {noteOpen ? (
+                <div className="relative">
+                  <input
+                    className="field pr-9"
+                    placeholder="Note"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNote('');
+                      setNoteOpen(false);
+                    }}
+                    aria-label="Remove note"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-[--text-muted] hover:text-[--text-primary]"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setNoteOpen(true)}
+                  className="inline-flex w-fit items-center gap-1.5 text-sm text-[--text-secondary] hover:text-[--text-primary]"
+                >
+                  <Plus size={13} /> Add note
+                </button>
+              )}
 
-          <div className="flex flex-wrap items-center gap-2">
-            <MonthPopover
-              windowLabel={windowLabel}
-              windowMonthKey={windowMonthKey}
-              currentMonthKey={currentMonthKey}
-              allTime={allTime}
-              onChangeMonth={changeMonth}
-              onShift={(dir) => changeMonth(shiftMonthKey(windowMonthKey, dir))}
-              onToggleAllTime={() => setAllTime((v) => !v)}
-            />
-            <Chip active={filterType === 'expense'} onClick={() => toggleTypeFilter('expense')}>Expense</Chip>
-            <Chip active={filterType === 'income'} onClick={() => toggleTypeFilter('income')}>Income</Chip>
-            <Chip active={filterType === 'transfer'} onClick={() => toggleTypeFilter('transfer')}>Transfer</Chip>
-            <FiltersPopover
-              accounts={accounts}
-              categories={categories}
-              filterAccountId={filterAccountId}
-              setFilterAccountId={setFilterAccountId}
-              filterCategoryId={filterCategoryId}
-              setFilterCategoryId={setFilterCategoryId}
-              filterPlanned={filterPlanned}
-              setFilterPlanned={setFilterPlanned}
-              dateFrom={dateFrom}
-              setDateFrom={setDateFrom}
-              dateTo={dateTo}
-              setDateTo={setDateTo}
-              activeCount={extraFilterCount}
-            />
-            <Chip active={selectMode} onClick={() => (selectMode ? exitSelectMode() : enterSelectMode())} icon={<ListChecks size={14} />}>
-              Select
-            </Chip>
-            {activeFilterCount ? (
-              <button onClick={clearFilters} className="text-xs text-[--accent] hover:underline">
-                Clear all
-              </button>
-            ) : null}
-          </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="kicker">Tags</span>
+                  {!isEditingLocalTxn && tags.length ? (
+                    <Link href="/tags" className="text-xs text-[--accent]">Manage tags</Link>
+                  ) : null}
+                </div>
+                {isEditingLocalTxn ? (
+                  <p className="text-sm text-[--text-muted]">Tags will be available once this transaction finishes syncing.</p>
+                ) : tags.length ? (
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map((tag) => {
+                      const active = selectedTagIds.includes(tag.id);
+                      const swatch = tag.color ?? 'var(--accent)';
+                      return (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => toggleTag(tag.id)}
+                          aria-pressed={active}
+                          className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
+                          style={{
+                            borderColor: active ? swatch : 'var(--border)',
+                            background: active ? `${swatch}2e` : 'transparent',
+                            color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                            boxShadow: active ? `0 0 0 1px ${swatch}` : 'none',
+                          }}
+                        >
+                          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: swatch }} />
+                          {tag.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-[--text-muted]">
+                    No tags yet — <Link href="/tags" className="text-[--accent]">create some</Link> to organize transactions.
+                  </p>
+                )}
+              </div>
 
-          {loadError ? <div className="surface-soft px-3 py-2 text-sm text-[--danger]">{loadError instanceof Error ? loadError.message : 'Could not load this transaction window.'}</div> : null}
-        </div>
-      ) : null}
+              {status ? <div className="surface-soft px-3 py-2 text-sm text-[--text-secondary]">{status}</div> : null}
+              <button onClick={closeForm} className="btn-ghost w-fit text-sm">{editingId ? 'Cancel edit' : 'Close'}</button>
+            </section>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <AnimatePresence>
         {recentlyDeleted.length ? (
@@ -817,7 +849,7 @@ export function TransactionsClient({
                   </span>
                 ) : null}
                 <div className="min-w-0">
-                  <div className="font-mono text-[--text-primary]">{formatMoney(Number(t.amount))} · {t.type}{t.is_planned === false ? ' · unplanned' : ''}</div>
+                  <div className="font-mono text-[--text-primary]">{formatMoney(Number(t.amount))} · {t.type}</div>
                   <div className="mt-1 text-sm text-[--text-secondary]">
                     {t.type === 'transfer'
                       ? `${accountMap.get(t.account_id) ?? 'Unknown account'} → ${t.transfer_account_id ? accountMap.get(t.transfer_account_id) ?? 'Unknown target' : 'No target'}`
@@ -945,6 +977,9 @@ function MonthPopover({
   windowMonthKey,
   currentMonthKey,
   allTime,
+  open,
+  onToggle,
+  onClose,
   onChangeMonth,
   onShift,
   onToggleAllTime,
@@ -953,28 +988,30 @@ function MonthPopover({
   windowMonthKey: string;
   currentMonthKey: string;
   allTime: boolean;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
   onChangeMonth: (value: string) => void;
   onShift: (direction: -1 | 1) => void;
   onToggleAllTime: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, open, () => setOpen(false));
+  useClickOutside(ref, open, onClose);
 
   return (
     <div className="relative" ref={ref}>
-      <Chip active={open || allTime} onClick={() => setOpen((v) => !v)} icon={<CalendarIcon size={14} />}>
+      <Chip active={open || allTime} onClick={onToggle} icon={<CalendarIcon size={14} />}>
         {windowLabel}
         <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </Chip>
       <AnimatePresence>
         {open ? (
           <motion.div
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-            transition={{ duration: 0.15 }}
-            className="surface-card absolute left-0 z-40 mt-2 w-64 space-y-3 p-3 shadow-lg"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+            className="surface-card absolute left-0 z-50 mt-2 w-64 space-y-3 p-3 shadow-lg"
           >
             <div className="flex items-center justify-between gap-2">
               <button onClick={() => onShift(-1)} className="btn-ghost p-2" aria-label="Previous month">
@@ -1017,13 +1054,14 @@ function FiltersPopover({
   setFilterAccountId,
   filterCategoryId,
   setFilterCategoryId,
-  filterPlanned,
-  setFilterPlanned,
   dateFrom,
   setDateFrom,
   dateTo,
   setDateTo,
   activeCount,
+  open,
+  onToggle,
+  onClose,
 }: {
   accounts: Account[];
   categories: Category[];
@@ -1031,39 +1069,38 @@ function FiltersPopover({
   setFilterAccountId: (value: string) => void;
   filterCategoryId: string;
   setFilterCategoryId: (value: string) => void;
-  filterPlanned: PlannedFilter;
-  setFilterPlanned: (value: PlannedFilter) => void;
   dateFrom: string;
   setDateFrom: (value: string) => void;
   dateTo: string;
   setDateTo: (value: string) => void;
   activeCount: number;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, open, () => setOpen(false));
+  useClickOutside(ref, open, onClose);
 
   const clearExtra = () => {
     setFilterAccountId('all');
     setFilterCategoryId('all');
-    setFilterPlanned('all');
     setDateFrom('');
     setDateTo('');
   };
 
   return (
     <div className="relative" ref={ref}>
-      <Chip active={open || activeCount > 0} onClick={() => setOpen((v) => !v)} icon={<SlidersHorizontal size={14} />}>
+      <Chip active={open || activeCount > 0} onClick={onToggle} icon={<SlidersHorizontal size={14} />}>
         Filters{activeCount ? ` (${activeCount})` : ''}
       </Chip>
       <AnimatePresence>
         {open ? (
           <motion.div
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-            transition={{ duration: 0.15 }}
-            className="surface-card absolute left-0 z-40 mt-2 w-[min(90vw,20rem)] space-y-3 p-3 shadow-lg"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+            className="surface-card absolute left-0 z-50 mt-2 w-[min(90vw,20rem)] space-y-3 p-3 shadow-lg"
           >
             <select className="field text-sm" value={filterAccountId} onChange={(e) => setFilterAccountId(e.target.value)}>
               <option value="all">All accounts</option>
@@ -1073,11 +1110,6 @@ function FiltersPopover({
               <option value="all">All categories</option>
               {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select>
-            <select className="field text-sm" value={filterPlanned} onChange={(e) => setFilterPlanned(e.target.value as PlannedFilter)}>
-              <option value="all">Planned + unplanned</option>
-              <option value="planned">Planned only</option>
-              <option value="unplanned">Unplanned only</option>
-            </select>
             <div className="grid grid-cols-2 gap-2">
               <input className="field text-sm" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} aria-label="From date" />
               <input className="field text-sm" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} aria-label="To date" />
@@ -1086,7 +1118,7 @@ function FiltersPopover({
               <button onClick={clearExtra} className="btn-ghost text-sm" disabled={!activeCount}>
                 Clear
               </button>
-              <button onClick={() => setOpen(false)} className="btn-primary text-sm">
+              <button onClick={onClose} className="btn-primary text-sm">
                 Done
               </button>
             </div>
