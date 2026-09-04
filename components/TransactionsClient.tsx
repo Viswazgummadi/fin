@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Calendar as CalendarIcon,
   CheckSquare,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   History,
@@ -14,6 +16,7 @@ import {
   Pencil,
   RotateCcw,
   Search as SearchIcon,
+  SlidersHorizontal,
   Square,
   Tag as TagIcon,
   Trash2,
@@ -195,17 +198,17 @@ export function TransactionsClient({
     return { income, expense, transfers };
   }, [filteredTransactions]);
 
-  const activeFilterCount = useMemo(() => {
+  const extraFilterCount = useMemo(() => {
     return [
       filterAccountId !== 'all',
       filterCategoryId !== 'all',
-      filterType !== 'all',
       filterPlanned !== 'all',
       Boolean(dateFrom),
       Boolean(dateTo),
-      Boolean(search),
     ].filter(Boolean).length;
-  }, [filterAccountId, filterCategoryId, filterType, filterPlanned, dateFrom, dateTo, search]);
+  }, [filterAccountId, filterCategoryId, filterPlanned, dateFrom, dateTo]);
+
+  const activeFilterCount = extraFilterCount + (filterType !== 'all' ? 1 : 0) + (search ? 1 : 0) + (allTime ? 1 : 0);
 
   const setWindowTransactions = (updater: (current: Transaction[]) => Transaction[]) => {
     queryClient.setQueryData<Transaction[]>(transactionsQueryKey, (current) => updater(current ?? []));
@@ -591,123 +594,13 @@ export function TransactionsClient({
     setWindowMonthKey(value);
   };
 
-  const filtersActive = activeFilterCount > 0;
+  const toggleTypeFilter = (value: Transaction['type']) => {
+    setFilterType((current) => (current === value ? 'all' : value));
+  };
 
   return (
     <div className="space-y-4 fade-up">
       {!selectMode ? <TransactionSuggestions transactions={transactions} categories={categories} /> : null}
-
-      <section className="surface-card space-y-4 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="kicker">Transactions</div>
-            <div className="mt-1 font-semibold">{windowLabel}</div>
-            <div className="text-sm text-[--text-secondary]">
-              {filteredTransactions.length} of {transactions.length} shown{isFetching ? ' · refreshing…' : ''}
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => changeMonth(shiftMonthKey(windowMonthKey, -1))}
-              className="btn-secondary px-3 py-2 text-sm"
-              aria-label="Previous month"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <input
-              type="month"
-              className="field w-auto py-2 text-sm"
-              value={windowMonthKey}
-              onChange={(e) => e.target.value && changeMonth(e.target.value)}
-              aria-label="Jump to month"
-            />
-            <button
-              onClick={() => changeMonth(shiftMonthKey(windowMonthKey, 1))}
-              className="btn-secondary px-3 py-2 text-sm"
-              disabled={!allTime && windowMonthKey >= currentMonthKey}
-              aria-label="Next month"
-            >
-              <ChevronRight size={16} />
-            </button>
-            <button
-              onClick={() => setAllTime((v) => !v)}
-              className={`btn-secondary inline-flex items-center gap-1.5 px-3 py-2 text-sm ${allTime ? 'bg-[--accent-wash] text-[--text-primary]' : ''}`}
-              aria-pressed={allTime}
-              title="Show every transaction, not just this month"
-            >
-              <History size={16} />
-              <span>All</span>
-            </button>
-            <button
-              onClick={() => (selectMode ? exitSelectMode() : enterSelectMode())}
-              className={`btn-secondary inline-flex items-center gap-1.5 px-3 py-2 text-sm ${selectMode ? 'bg-[--accent-wash] text-[--text-primary]' : ''}`}
-              aria-pressed={selectMode}
-            >
-              <ListChecks size={16} />
-              <span>{selectMode ? 'Cancel' : 'Select'}</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <div className="relative">
-            <SearchIcon size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[--text-muted]" />
-            <input
-              className="field pl-9 pr-9"
-              placeholder="Search notes, amounts, accounts, categories…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search ? (
-              <button
-                onClick={() => setSearch('')}
-                aria-label="Clear search"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-[--text-muted] hover:text-[--text-primary]"
-              >
-                <X size={14} />
-              </button>
-            ) : null}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <select className="field w-auto py-2 text-sm" value={filterAccountId} onChange={(e) => setFilterAccountId(e.target.value)}>
-              <option value="all">All accounts</option>
-              {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
-            </select>
-            <select className="field w-auto py-2 text-sm" value={filterType} onChange={(e) => setFilterType(e.target.value as 'all' | Transaction['type'])}>
-              <option value="all">All types</option>
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
-              <option value="transfer">Transfer</option>
-            </select>
-            <select className="field w-auto py-2 text-sm" value={filterCategoryId} onChange={(e) => setFilterCategoryId(e.target.value)}>
-              <option value="all">All categories</option>
-              {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-            </select>
-            <select className="field w-auto py-2 text-sm" value={filterPlanned} onChange={(e) => setFilterPlanned(e.target.value as PlannedFilter)}>
-              <option value="all">Planned + unplanned</option>
-              <option value="planned">Planned only</option>
-              <option value="unplanned">Unplanned only</option>
-            </select>
-            <input className="field w-auto py-2 text-sm" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} aria-label="From date" />
-            <input className="field w-auto py-2 text-sm" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} aria-label="To date" />
-            {filtersActive ? (
-              <button onClick={clearFilters} className="btn-ghost inline-flex items-center gap-1 text-sm">
-                <X size={14} /> Clear filters
-              </button>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat title="Shown" value={String(filteredTransactions.length)} />
-          <Stat title="Income" value={formatMoney(visibleStats.income)} mono />
-          <Stat title="Expense" value={formatMoney(visibleStats.expense)} mono />
-          <Stat title="Transfers" value={String(visibleStats.transfers)} />
-        </div>
-
-        {loadError ? <div className="surface-soft px-3 py-2 text-sm text-[--danger]">{loadError instanceof Error ? loadError.message : 'Could not load this transaction window.'}</div> : null}
-      </section>
 
       {!selectMode ? (
         <section className="surface-card space-y-3 p-4">
@@ -804,6 +697,77 @@ export function TransactionsClient({
           </div>
         </div>
       )}
+
+      {!selectMode ? (
+        <div className="space-y-3">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+            <div className="font-semibold">{windowLabel}</div>
+            <div className="text-sm text-[--text-secondary]">
+              {filteredTransactions.length} shown{isFetching ? ' · refreshing…' : ''} · {formatMoney(visibleStats.expense)} spent · {formatMoney(visibleStats.income)} income
+              {visibleStats.transfers ? ` · ${visibleStats.transfers} transfer${visibleStats.transfers === 1 ? '' : 's'}` : ''}
+            </div>
+          </div>
+
+          <div className="relative">
+            <SearchIcon size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[--text-muted]" />
+            <input
+              className="field pl-9 pr-9"
+              placeholder="Search notes, amounts, accounts, categories…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search ? (
+              <button
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-[--text-muted] hover:text-[--text-primary]"
+              >
+                <X size={14} />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <MonthPopover
+              windowLabel={windowLabel}
+              windowMonthKey={windowMonthKey}
+              currentMonthKey={currentMonthKey}
+              allTime={allTime}
+              onChangeMonth={changeMonth}
+              onShift={(dir) => changeMonth(shiftMonthKey(windowMonthKey, dir))}
+              onToggleAllTime={() => setAllTime((v) => !v)}
+            />
+            <Chip active={filterType === 'expense'} onClick={() => toggleTypeFilter('expense')}>Expense</Chip>
+            <Chip active={filterType === 'income'} onClick={() => toggleTypeFilter('income')}>Income</Chip>
+            <Chip active={filterType === 'transfer'} onClick={() => toggleTypeFilter('transfer')}>Transfer</Chip>
+            <FiltersPopover
+              accounts={accounts}
+              categories={categories}
+              filterAccountId={filterAccountId}
+              setFilterAccountId={setFilterAccountId}
+              filterCategoryId={filterCategoryId}
+              setFilterCategoryId={setFilterCategoryId}
+              filterPlanned={filterPlanned}
+              setFilterPlanned={setFilterPlanned}
+              dateFrom={dateFrom}
+              setDateFrom={setDateFrom}
+              dateTo={dateTo}
+              setDateTo={setDateTo}
+              activeCount={extraFilterCount}
+            />
+            <Chip active={selectMode} onClick={() => (selectMode ? exitSelectMode() : enterSelectMode())} icon={<ListChecks size={14} />}>
+              Select
+            </Chip>
+            {activeFilterCount ? (
+              <button onClick={clearFilters} className="text-xs text-[--accent] hover:underline">
+                Clear all
+              </button>
+            ) : null}
+          </div>
+
+          {loadError ? <div className="surface-soft px-3 py-2 text-sm text-[--danger]">{loadError instanceof Error ? loadError.message : 'Could not load this transaction window.'}</div> : null}
+        </div>
+      ) : null}
 
       <AnimatePresence>
         {recentlyDeleted.length ? (
@@ -927,11 +891,208 @@ function SelectionBar({ count, onDelete, onDone }: { count: number; onDelete: ()
   );
 }
 
-function Stat({ title, value, mono = false }: { title: string; value: string; mono?: boolean }) {
+function Chip({
+  active,
+  onClick,
+  icon,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="surface-soft p-3">
-      <div className="kicker">{title}</div>
-      <div className={`mt-1 text-xl ${mono ? 'font-mono' : 'font-semibold'}`}>{value}</div>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
+      style={{
+        borderColor: active ? 'var(--accent)' : 'var(--border)',
+        background: active ? 'var(--accent-wash)' : 'transparent',
+        color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+      }}
+    >
+      {icon}
+      {children}
+    </button>
+  );
+}
+
+// Closes an open popover on outside click or Escape. Shared by MonthPopover and
+// FiltersPopover, which both need identical dismiss behavior for their anchored panels.
+function useClickOutside(ref: React.RefObject<HTMLElement>, active: boolean, onOutside: () => void) {
+  useEffect(() => {
+    if (!active) return;
+    const handlePointer = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) onOutside();
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onOutside();
+    };
+    document.addEventListener('mousedown', handlePointer);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handlePointer);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [active, ref, onOutside]);
+}
+
+function MonthPopover({
+  windowLabel,
+  windowMonthKey,
+  currentMonthKey,
+  allTime,
+  onChangeMonth,
+  onShift,
+  onToggleAllTime,
+}: {
+  windowLabel: string;
+  windowMonthKey: string;
+  currentMonthKey: string;
+  allTime: boolean;
+  onChangeMonth: (value: string) => void;
+  onShift: (direction: -1 | 1) => void;
+  onToggleAllTime: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useClickOutside(ref, open, () => setOpen(false));
+
+  return (
+    <div className="relative" ref={ref}>
+      <Chip active={open || allTime} onClick={() => setOpen((v) => !v)} icon={<CalendarIcon size={14} />}>
+        {windowLabel}
+        <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </Chip>
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.15 }}
+            className="surface-card absolute left-0 z-40 mt-2 w-64 space-y-3 p-3 shadow-lg"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <button onClick={() => onShift(-1)} className="btn-ghost p-2" aria-label="Previous month">
+                <ChevronLeft size={16} />
+              </button>
+              <div className="text-sm font-medium">{formatMonthLabel(windowMonthKey)}</div>
+              <button
+                onClick={() => onShift(1)}
+                className="btn-ghost p-2"
+                aria-label="Next month"
+                disabled={!allTime && windowMonthKey >= currentMonthKey}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+            <input
+              type="month"
+              className="field text-sm"
+              value={windowMonthKey}
+              onChange={(e) => e.target.value && onChangeMonth(e.target.value)}
+              aria-label="Jump to month"
+            />
+            <button
+              onClick={onToggleAllTime}
+              className={`btn-secondary inline-flex w-full items-center justify-center gap-1.5 text-sm ${allTime ? 'bg-[--accent-wash] text-[--text-primary]' : ''}`}
+            >
+              <History size={14} /> {allTime ? 'Showing all time' : 'Show all time instead'}
+            </button>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function FiltersPopover({
+  accounts,
+  categories,
+  filterAccountId,
+  setFilterAccountId,
+  filterCategoryId,
+  setFilterCategoryId,
+  filterPlanned,
+  setFilterPlanned,
+  dateFrom,
+  setDateFrom,
+  dateTo,
+  setDateTo,
+  activeCount,
+}: {
+  accounts: Account[];
+  categories: Category[];
+  filterAccountId: string;
+  setFilterAccountId: (value: string) => void;
+  filterCategoryId: string;
+  setFilterCategoryId: (value: string) => void;
+  filterPlanned: PlannedFilter;
+  setFilterPlanned: (value: PlannedFilter) => void;
+  dateFrom: string;
+  setDateFrom: (value: string) => void;
+  dateTo: string;
+  setDateTo: (value: string) => void;
+  activeCount: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useClickOutside(ref, open, () => setOpen(false));
+
+  const clearExtra = () => {
+    setFilterAccountId('all');
+    setFilterCategoryId('all');
+    setFilterPlanned('all');
+    setDateFrom('');
+    setDateTo('');
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <Chip active={open || activeCount > 0} onClick={() => setOpen((v) => !v)} icon={<SlidersHorizontal size={14} />}>
+        Filters{activeCount ? ` (${activeCount})` : ''}
+      </Chip>
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.15 }}
+            className="surface-card absolute left-0 z-40 mt-2 w-[min(90vw,20rem)] space-y-3 p-3 shadow-lg"
+          >
+            <select className="field text-sm" value={filterAccountId} onChange={(e) => setFilterAccountId(e.target.value)}>
+              <option value="all">All accounts</option>
+              {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+            </select>
+            <select className="field text-sm" value={filterCategoryId} onChange={(e) => setFilterCategoryId(e.target.value)}>
+              <option value="all">All categories</option>
+              {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            </select>
+            <select className="field text-sm" value={filterPlanned} onChange={(e) => setFilterPlanned(e.target.value as PlannedFilter)}>
+              <option value="all">Planned + unplanned</option>
+              <option value="planned">Planned only</option>
+              <option value="unplanned">Unplanned only</option>
+            </select>
+            <div className="grid grid-cols-2 gap-2">
+              <input className="field text-sm" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} aria-label="From date" />
+              <input className="field text-sm" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} aria-label="To date" />
+            </div>
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <button onClick={clearExtra} className="btn-ghost text-sm" disabled={!activeCount}>
+                Clear
+              </button>
+              <button onClick={() => setOpen(false)} className="btn-primary text-sm">
+                Done
+              </button>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
