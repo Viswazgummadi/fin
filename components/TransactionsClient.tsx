@@ -6,13 +6,15 @@ import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Calendar as CalendarIcon,
+  CheckSquare,
   ChevronLeft,
   ChevronRight,
+  History,
+  ListChecks,
   Pencil,
   RotateCcw,
   Search as SearchIcon,
-  SlidersHorizontal,
+  Square,
   Tag as TagIcon,
   Trash2,
   X,
@@ -61,7 +63,7 @@ export function TransactionsClient({
   const [isPlanned, setIsPlanned] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [status, setStatus] = useState('');
-  const [recentlyDeleted, setRecentlyDeleted] = useState<Transaction | null>(null);
+  const [recentlyDeleted, setRecentlyDeleted] = useState<Transaction[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   const [search, setSearch] = useState('');
@@ -71,15 +73,20 @@ export function TransactionsClient({
   const [filterPlanned, setFilterPlanned] = useState<PlannedFilter>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [popupMode, setPopupMode] = useState<'month' | 'search' | 'filters' | null>(null);
+  const [allTime, setAllTime] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const categoryOptions = useMemo(() => categories.filter((c) => c.kind === 'both' || c.kind === type), [categories, type]);
   const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
   const categoryMap = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
   const transferOptions = useMemo(() => accounts.filter((a) => a.id !== accountId), [accounts, accountId]);
   const windowRange = useMemo(() => getMonthRangeForQuery(windowMonthKey), [windowMonthKey]);
-  const windowLabel = useMemo(() => formatMonthLabel(windowMonthKey), [windowMonthKey]);
-  const transactionsQueryKey = useMemo(() => [...queryKeys.transactionWindows, windowMonthKey] as const, [windowMonthKey]);
+  const windowLabel = useMemo(() => (allTime ? 'All time' : formatMonthLabel(windowMonthKey)), [allTime, windowMonthKey]);
+  const transactionsQueryKey = useMemo(
+    () => [...queryKeys.transactionWindows, allTime ? 'all' : windowMonthKey] as const,
+    [allTime, windowMonthKey]
+  );
 
   const {
     data: transactions = initialTransactions,
@@ -90,20 +97,17 @@ export function TransactionsClient({
     queryFn: async () => {
       if (!supabase) return initialTransactions;
 
-      const { data, error } = await supabase
-        .from('transactions')
-        .select(TRANSACTION_SELECT)
-        .is('deleted_at', null)
-        .gte('occurred_at', windowRange.startIso)
-        .lt('occurred_at', windowRange.endIso)
-        .order('occurred_at', { ascending: false })
-        .limit(500);
+      let query = supabase.from('transactions').select(TRANSACTION_SELECT).is('deleted_at', null).order('occurred_at', { ascending: false });
+      query = allTime
+        ? query.limit(3000)
+        : query.gte('occurred_at', windowRange.startIso).lt('occurred_at', windowRange.endIso).limit(500);
 
+      const { data, error } = await query;
       if (error) throw error;
       return ((data as unknown) as Transaction[] | null) ?? [];
     },
     enabled: !!supabase,
-    initialData: windowMonthKey === initialMonthKey ? initialTransactions : undefined,
+    initialData: !allTime && windowMonthKey === initialMonthKey ? initialTransactions : undefined,
     placeholderData: (previousData) => previousData,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
@@ -199,8 +203,9 @@ export function TransactionsClient({
       filterPlanned !== 'all',
       Boolean(dateFrom),
       Boolean(dateTo),
+      Boolean(search),
     ].filter(Boolean).length;
-  }, [filterAccountId, filterCategoryId, filterType, filterPlanned, dateFrom, dateTo]);
+  }, [filterAccountId, filterCategoryId, filterType, filterPlanned, dateFrom, dateTo, search]);
 
   const setWindowTransactions = (updater: (current: Transaction[]) => Transaction[]) => {
     queryClient.setQueryData<Transaction[]>(transactionsQueryKey, (current) => updater(current ?? []));
@@ -215,7 +220,7 @@ export function TransactionsClient({
   };
 
   const upsertInCurrentWindow = (txn: Transaction) => {
-    if (getMonthKey(txn.occurred_at) !== windowMonthKey) return;
+    if (!allTime && getMonthKey(txn.occurred_at) !== windowMonthKey) return;
     setWindowTransactions((current) => [txn, ...current.filter((item) => item.id !== txn.id)]);
   };
 
@@ -453,75 +458,116 @@ export function TransactionsClient({
     }
   };
 
-  const deleteTxn = async (txn: Transaction) => {
+  const deleteTxns = async (txns: Transaction[]) => {
+    if (!txns.length) return;
+    const ids = txns.map((t) => t.id);
+    const plural = txns.length > 1 ? 's' : '';
+
     if (!navigator.onLine || !supabase) {
+      for (const txn of txns) {
         enqueueOfflineOutboxItem({
-            id: crypto.randomUUID(),
-            kind: 'transaction-soft-delete',
-            transactionId: txn.id,
-            createdAt: new Date().toISOString(),
-          });
-          setWindowTransactions((current) => current.filter((item) => item.id !== txn.id));
-          setStatus('Delete queued (offline).');
-          return;
+          id: crypto.randomUUID(),
+          kind: 'transaction-soft-delete',
+          transactionId: txn.id,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      setWindowTransactions((current) => current.filter((item) => !ids.includes(item.id)));
+      setRecentlyDeleted(txns);
+      setStatus(`Delete queued (offline) — ${txns.length} transaction${plural}.`);
+      return;
     }
 
-    const { error } = await supabase.from('transactions').update({ deleted_at: new Date().toISOString() }).eq('id', txn.id);
+    const { error } = await supabase.from('transactions').update({ deleted_at: new Date().toISOString() }).in('id', ids);
     if (!error) {
-      setWindowTransactions((current) => current.filter((item) => item.id !== txn.id));
-      setRecentlyDeleted(txn);
+      setWindowTransactions((current) => current.filter((item) => !ids.includes(item.id)));
+      setRecentlyDeleted(txns);
       await refreshTransactionWindows();
-      setStatus('Transaction deleted.');
+      setStatus(`Deleted ${txns.length} transaction${plural}.`);
     } else {
+      for (const txn of txns) {
         enqueueOfflineOutboxItem({
-            id: crypto.randomUUID(),
-            kind: 'transaction-soft-delete',
-            transactionId: txn.id,
-            createdAt: new Date().toISOString(),
-          });
-          setWindowTransactions((current) => current.filter((item) => item.id !== txn.id));
-          setStatus('Delete queued (connection error).');
+          id: crypto.randomUUID(),
+          kind: 'transaction-soft-delete',
+          transactionId: txn.id,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      setWindowTransactions((current) => current.filter((item) => !ids.includes(item.id)));
+      setRecentlyDeleted(txns);
+      setStatus(`Delete queued (connection error) — ${txns.length} transaction${plural}.`);
     }
   };
 
+  const deleteTxn = (txn: Transaction) => deleteTxns([txn]);
+
   const undoDelete = async () => {
-    if (!recentlyDeleted) return;
+    if (!recentlyDeleted.length) return;
+    const toRestore = recentlyDeleted;
+    const ids = toRestore.map((t) => t.id);
+    const plural = toRestore.length > 1 ? 's' : '';
 
     if (!navigator.onLine || !supabase) {
+      for (const txn of toRestore) {
         enqueueOfflineOutboxItem({
-            id: crypto.randomUUID(),
-            kind: 'transaction-restore',
-            transactionId: recentlyDeleted.id,
-            createdAt: new Date().toISOString(),
-          });
-          upsertInCurrentWindow(recentlyDeleted);
-          setRecentlyDeleted(null);
-          setStatus('Restore queued (offline).');
-          return;
+          id: crypto.randomUUID(),
+          kind: 'transaction-restore',
+          transactionId: txn.id,
+          createdAt: new Date().toISOString(),
+        });
+        upsertInCurrentWindow(txn);
+      }
+      setRecentlyDeleted([]);
+      setStatus('Restore queued (offline).');
+      return;
     }
 
-    const { data, error } = await supabase
-      .from('transactions')
-      .update({ deleted_at: null })
-      .eq('id', recentlyDeleted.id)
-      .select(TRANSACTION_SELECT)
-      .single();
+    const { data, error } = await supabase.from('transactions').update({ deleted_at: null }).in('id', ids).select(TRANSACTION_SELECT);
     if (!error && data) {
-      upsertInCurrentWindow(data as Transaction);
-      setRecentlyDeleted(null);
+      for (const row of data as Transaction[]) upsertInCurrentWindow(row);
+      setRecentlyDeleted([]);
       await refreshTransactionWindows();
-      setStatus('Transaction restored.');
+      setStatus(`Restored ${toRestore.length} transaction${plural}.`);
     } else {
+      for (const txn of toRestore) {
         enqueueOfflineOutboxItem({
-            id: crypto.randomUUID(),
-            kind: 'transaction-restore',
-            transactionId: recentlyDeleted.id,
-            createdAt: new Date().toISOString(),
-          });
-          upsertInCurrentWindow(recentlyDeleted);
-          setRecentlyDeleted(null);
-          setStatus('Restore queued (connection error).');
+          id: crypto.randomUUID(),
+          kind: 'transaction-restore',
+          transactionId: txn.id,
+          createdAt: new Date().toISOString(),
+        });
+        upsertInCurrentWindow(txn);
+      }
+      setRecentlyDeleted([]);
+      setStatus('Restore queued (connection error).');
     }
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const enterSelectMode = () => setSelectMode(true);
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const selectAllVisible = () => {
+    setSelectedIds(new Set(filteredTransactions.map((t) => t.id)));
+  };
+
+  const deleteSelected = async () => {
+    const toDelete = filteredTransactions.filter((t) => selectedIds.has(t.id));
+    if (!toDelete.length) return;
+    await deleteTxns(toDelete);
+    exitSelectMode();
   };
 
   const clearFilters = () => {
@@ -532,204 +578,235 @@ export function TransactionsClient({
     setFilterPlanned('all');
     setDateFrom('');
     setDateTo('');
+    setAllTime(false);
   };
 
   useEffect(() => {
-    if (!popupMode) return;
+    if (selectMode) exitSelectMode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [windowMonthKey, allTime]);
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setPopupMode(null);
-    };
-
-    document.body.style.overflow = 'hidden';
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = '';
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [popupMode]);
-
-  const openSearch = () => setPopupMode('search');
-  const openFilters = () => setPopupMode('filters');
-  const openMonth = () => setPopupMode('month');
-  const closePopup = () => setPopupMode(null);
-
-  const setQuickWindow = (direction: -1 | 0 | 1) => {
-    if (direction === 0) {
-      setWindowMonthKey(currentMonthKey);
-      return;
-    }
-    setWindowMonthKey(shiftMonthKey(windowMonthKey, direction));
+  const changeMonth = (value: string) => {
+    setAllTime(false);
+    setWindowMonthKey(value);
   };
 
-  const popup = popupMode ? (
-    <TransactionsPopup
-      key="transactions-popup"
-      mode={popupMode}
-      onClose={closePopup}
-      onResetAll={() => {
-        clearFilters();
-        setWindowMonthKey(initialMonthKey);
-      }}
-      onQuickWindow={setQuickWindow}
-      setWindowMonthKey={setWindowMonthKey}
-      windowMonthKey={windowMonthKey}
-      currentMonthKey={currentMonthKey}
-      windowLabel={windowLabel}
-      transactionsCount={transactions.length}
-      search={search}
-      setSearch={setSearch}
-      activeFilterCount={activeFilterCount}
-      accounts={accounts}
-      categories={categories}
-      filterAccountId={filterAccountId}
-      setFilterAccountId={setFilterAccountId}
-      filterType={filterType}
-      setFilterType={setFilterType}
-      filterPlanned={filterPlanned}
-      setFilterPlanned={setFilterPlanned}
-      filterCategoryId={filterCategoryId}
-      setFilterCategoryId={setFilterCategoryId}
-      dateFrom={dateFrom}
-      setDateFrom={setDateFrom}
-      dateTo={dateTo}
-      setDateTo={setDateTo}
-      filteredTransactionsCount={filteredTransactions.length}
-      visibleStats={visibleStats}
-    />
-  ) : null;
+  const filtersActive = activeFilterCount > 0;
 
   return (
     <div className="space-y-4 fade-up">
-      <TransactionSuggestions transactions={transactions} categories={categories} />
-      
+      {!selectMode ? <TransactionSuggestions transactions={transactions} categories={categories} /> : null}
+
       <section className="surface-card space-y-4 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="kicker">Transactions</div>
             <div className="mt-1 font-semibold">{windowLabel}</div>
-            <div className="text-sm text-[--text-secondary]">{transactions.length} rows in view</div>
+            <div className="text-sm text-[--text-secondary]">
+              {filteredTransactions.length} of {transactions.length} shown{isFetching ? ' · refreshing…' : ''}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setWindowMonthKey(shiftMonthKey(windowMonthKey, -1))} className="btn-secondary px-3 text-sm" aria-label="Previous month">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => changeMonth(shiftMonthKey(windowMonthKey, -1))}
+              className="btn-secondary px-3 py-2 text-sm"
+              aria-label="Previous month"
+            >
               <ChevronLeft size={16} />
             </button>
-            <button onClick={openMonth} className="btn-secondary px-3 text-sm" aria-label="Choose month">
-              <CalendarIcon size={16} />
-            </button>
-            <button onClick={openSearch} className="btn-secondary px-3 text-sm" aria-label="Search transactions">
-              <SearchIcon size={16} />
-            </button>
-            <button onClick={openFilters} className="btn-secondary relative px-3 text-sm" aria-label="Filter transactions">
-              <SlidersHorizontal size={16} />
-              {activeFilterCount ? (
-                <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[--accent] px-1 text-[10px] font-semibold text-[--on-accent]">
-                  {activeFilterCount}
-                </span>
-              ) : null}
-            </button>
+            <input
+              type="month"
+              className="field w-auto py-2 text-sm"
+              value={windowMonthKey}
+              onChange={(e) => e.target.value && changeMonth(e.target.value)}
+              aria-label="Jump to month"
+            />
             <button
-              onClick={() => setWindowMonthKey(shiftMonthKey(windowMonthKey, 1))}
-              className="btn-secondary px-3 text-sm"
-              disabled={windowMonthKey >= currentMonthKey}
+              onClick={() => changeMonth(shiftMonthKey(windowMonthKey, 1))}
+              className="btn-secondary px-3 py-2 text-sm"
+              disabled={!allTime && windowMonthKey >= currentMonthKey}
               aria-label="Next month"
             >
               <ChevronRight size={16} />
             </button>
+            <button
+              onClick={() => setAllTime((v) => !v)}
+              className={`btn-secondary inline-flex items-center gap-1.5 px-3 py-2 text-sm ${allTime ? 'bg-[--accent-wash] text-[--text-primary]' : ''}`}
+              aria-pressed={allTime}
+              title="Show every transaction, not just this month"
+            >
+              <History size={16} />
+              <span>All</span>
+            </button>
+            <button
+              onClick={() => (selectMode ? exitSelectMode() : enterSelectMode())}
+              className={`btn-secondary inline-flex items-center gap-1.5 px-3 py-2 text-sm ${selectMode ? 'bg-[--accent-wash] text-[--text-primary]' : ''}`}
+              aria-pressed={selectMode}
+            >
+              <ListChecks size={16} />
+              <span>{selectMode ? 'Cancel' : 'Select'}</span>
+            </button>
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Stat title="Window rows" value={String(transactions.length)} />
-          <Stat title="Window month" value={windowMonthKey} mono />
-          <Stat title="Load mode" value="Monthly cached" />
-          <Stat title="Status" value={isFetching ? 'Refreshing…' : 'Cached'} />
+        <div className="space-y-3">
+          <div className="relative">
+            <SearchIcon size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[--text-muted]" />
+            <input
+              className="field pl-9 pr-9"
+              placeholder="Search notes, amounts, accounts, categories…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search ? (
+              <button
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-[--text-muted] hover:text-[--text-primary]"
+              >
+                <X size={14} />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <select className="field w-auto py-2 text-sm" value={filterAccountId} onChange={(e) => setFilterAccountId(e.target.value)}>
+              <option value="all">All accounts</option>
+              {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+            </select>
+            <select className="field w-auto py-2 text-sm" value={filterType} onChange={(e) => setFilterType(e.target.value as 'all' | Transaction['type'])}>
+              <option value="all">All types</option>
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+              <option value="transfer">Transfer</option>
+            </select>
+            <select className="field w-auto py-2 text-sm" value={filterCategoryId} onChange={(e) => setFilterCategoryId(e.target.value)}>
+              <option value="all">All categories</option>
+              {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            </select>
+            <select className="field w-auto py-2 text-sm" value={filterPlanned} onChange={(e) => setFilterPlanned(e.target.value as PlannedFilter)}>
+              <option value="all">Planned + unplanned</option>
+              <option value="planned">Planned only</option>
+              <option value="unplanned">Unplanned only</option>
+            </select>
+            <input className="field w-auto py-2 text-sm" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} aria-label="From date" />
+            <input className="field w-auto py-2 text-sm" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} aria-label="To date" />
+            {filtersActive ? (
+              <button onClick={clearFilters} className="btn-ghost inline-flex items-center gap-1 text-sm">
+                <X size={14} /> Clear filters
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat title="Shown" value={String(filteredTransactions.length)} />
+          <Stat title="Income" value={formatMoney(visibleStats.income)} mono />
+          <Stat title="Expense" value={formatMoney(visibleStats.expense)} mono />
+          <Stat title="Transfers" value={String(visibleStats.transfers)} />
         </div>
 
         {loadError ? <div className="surface-soft px-3 py-2 text-sm text-[--danger]">{loadError instanceof Error ? loadError.message : 'Could not load this transaction window.'}</div> : null}
       </section>
 
-      <section className="surface-card space-y-3 p-4">
-        <div>
-          <div className="kicker">Manual entry</div>
-          <div className="mt-1 font-semibold">Add or edit transaction</div>
-        </div>
-        <div className="grid gap-3 md:grid-cols-5">
-          <select className="field" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-            {accounts.length ? accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>) : <option value="">No accounts yet</option>}
-          </select>
-          <select className="field" value={type} onChange={(e) => setType(e.target.value as Transaction['type'])}>
-            <option value="expense">Expense</option>
-            <option value="income">Income</option>
-            <option value="transfer">Transfer</option>
-          </select>
-          {type === 'transfer' ? (
-            <select className="field" value={transferAccountId} onChange={(e) => setTransferAccountId(e.target.value)}>
-              <option value="">Target account</option>
-              {transferOptions.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+      {!selectMode ? (
+        <section className="surface-card space-y-3 p-4">
+          <div>
+            <div className="kicker">Manual entry</div>
+            <div className="mt-1 font-semibold">Add or edit transaction</div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-5">
+            <select className="field" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+              {accounts.length ? accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>) : <option value="">No accounts yet</option>}
             </select>
-          ) : (
-            <select className="field" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-              {categoryOptions.length ? categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>) : <option value="">No categories</option>}
+            <select className="field" value={type} onChange={(e) => setType(e.target.value as Transaction['type'])}>
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+              <option value="transfer">Transfer</option>
             </select>
-          )}
-          <input className="field text-right font-mono" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          <button onClick={addOrUpdateTransaction} className="btn-primary">{editingId ? 'Update transaction' : 'Add transaction'}</button>
-        </div>
-        <input className="field" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} />
-        <label className="flex items-center gap-2 text-sm text-[--text-secondary]">
-          <input type="checkbox" checked={isPlanned} onChange={(e) => setIsPlanned(e.target.checked)} />
-          Planned transaction
-        </label>
+            {type === 'transfer' ? (
+              <select className="field" value={transferAccountId} onChange={(e) => setTransferAccountId(e.target.value)}>
+                <option value="">Target account</option>
+                {transferOptions.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            ) : (
+              <select className="field" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                {categoryOptions.length ? categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>) : <option value="">No categories</option>}
+              </select>
+            )}
+            <input className="field text-right font-mono" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <button onClick={addOrUpdateTransaction} className="btn-primary">{editingId ? 'Update transaction' : 'Add transaction'}</button>
+          </div>
+          <input className="field" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} />
+          <label className="flex items-center gap-2 text-sm text-[--text-secondary]">
+            <input type="checkbox" checked={isPlanned} onChange={(e) => setIsPlanned(e.target.checked)} />
+            Planned transaction
+          </label>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-3">
-            <span className="kicker">Tags</span>
-            {!isEditingLocalTxn && tags.length ? (
-              <Link href="/tags" className="text-xs text-[--accent]">Manage tags</Link>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="kicker">Tags</span>
+              {!isEditingLocalTxn && tags.length ? (
+                <Link href="/tags" className="text-xs text-[--accent]">Manage tags</Link>
+              ) : null}
+            </div>
+            {isEditingLocalTxn ? (
+              <p className="text-sm text-[--text-muted]">Tags will be available once this transaction finishes syncing.</p>
+            ) : tags.length ? (
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag) => {
+                  const active = selectedTagIds.includes(tag.id);
+                  const swatch = tag.color ?? 'var(--accent)';
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleTag(tag.id)}
+                      aria-pressed={active}
+                      className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
+                      style={{
+                        borderColor: active ? swatch : 'var(--border)',
+                        background: active ? `${swatch}2e` : 'transparent',
+                        color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        boxShadow: active ? `0 0 0 1px ${swatch}` : 'none',
+                      }}
+                    >
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: swatch }} />
+                      {tag.name}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-[--text-muted]">
+                No tags yet — <Link href="/tags" className="text-[--accent]">create some</Link> to organize transactions.
+              </p>
+            )}
+          </div>
+
+          {status ? <div className="surface-soft px-3 py-2 text-sm text-[--text-secondary]">{status}</div> : null}
+          {editingId ? <button onClick={resetForm} className="btn-ghost w-fit text-sm">Cancel edit</button> : null}
+        </section>
+      ) : (
+        <div className="surface-card flex flex-wrap items-center justify-between gap-3 p-4">
+          <div className="text-sm font-medium">
+            {selectedIds.size ? `${selectedIds.size} selected` : 'Tap transactions below to select them'}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={selectAllVisible} className="btn-secondary text-sm" disabled={!filteredTransactions.length}>
+              Select all ({filteredTransactions.length})
+            </button>
+            {selectedIds.size ? (
+              <button onClick={() => setSelectedIds(new Set())} className="btn-ghost text-sm">
+                Clear
+              </button>
             ) : null}
           </div>
-          {isEditingLocalTxn ? (
-            <p className="text-sm text-[--text-muted]">Tags will be available once this transaction finishes syncing.</p>
-          ) : tags.length ? (
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => {
-                const active = selectedTagIds.includes(tag.id);
-                const swatch = tag.color ?? 'var(--accent)';
-                return (
-                  <button
-                    key={tag.id}
-                    type="button"
-                    onClick={() => toggleTag(tag.id)}
-                    aria-pressed={active}
-                    className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
-                    style={{
-                      borderColor: active ? swatch : 'var(--border)',
-                      background: active ? `${swatch}2e` : 'transparent',
-                      color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      boxShadow: active ? `0 0 0 1px ${swatch}` : 'none',
-                    }}
-                  >
-                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: swatch }} />
-                    {tag.name}
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-[--text-muted]">
-              No tags yet — <Link href="/tags" className="text-[--accent]">create some</Link> to organize transactions.
-            </p>
-          )}
         </div>
-
-        {status ? <div className="surface-soft px-3 py-2 text-sm text-[--text-secondary]">{status}</div> : null}
-        {editingId ? <button onClick={resetForm} className="btn-ghost w-fit text-sm">Cancel edit</button> : null}
-      </section>
+      )}
 
       <AnimatePresence>
-        {recentlyDeleted ? (
+        {recentlyDeleted.length ? (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -739,7 +816,16 @@ export function TransactionsClient({
           >
             <div className="surface-card flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
               <div className="text-sm text-[--text-secondary]">
-                Deleted <span className="font-medium text-[--text-primary]">{recentlyDeleted.note || formatMoney(Number(recentlyDeleted.amount))}</span>. Undo is available until the next delete.
+                {recentlyDeleted.length === 1 ? (
+                  <>
+                    Deleted <span className="font-medium text-[--text-primary]">{recentlyDeleted[0].note || formatMoney(Number(recentlyDeleted[0].amount))}</span>.
+                  </>
+                ) : (
+                  <>
+                    Deleted <span className="font-medium text-[--text-primary]">{recentlyDeleted.length} transactions</span>.
+                  </>
+                )}{' '}
+                Undo is available until the next delete.
               </div>
               <button onClick={undoDelete} className="btn-ghost inline-flex w-fit items-center gap-1.5 text-sm">
                 <RotateCcw size={14} /> Undo delete
@@ -749,50 +835,95 @@ export function TransactionsClient({
         ) : null}
       </AnimatePresence>
 
-      <div className="space-y-2">
+      <div className={`space-y-2 ${selectMode && selectedIds.size ? 'pb-40 lg:pb-24' : ''}`}>
         {filteredTransactions.length ? filteredTransactions.map((t) => {
           const rowTags = tagsByTransaction[t.id] ?? [];
+          const isSelected = selectedIds.has(t.id);
           return (
-          <div key={t.id} className="data-row p-4">
+          <div
+            key={t.id}
+            onClick={selectMode ? () => toggleSelected(t.id) : undefined}
+            className={`data-row p-4 ${selectMode ? 'cursor-pointer' : ''} ${isSelected ? 'border-[--accent] ring-1 ring-[--accent]/40' : ''}`}
+          >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="min-w-0">
-                <div className="font-mono text-[--text-primary]">{formatMoney(Number(t.amount))} · {t.type}{t.is_planned === false ? ' · unplanned' : ''}</div>
-                <div className="mt-1 text-sm text-[--text-secondary]">
-                  {t.type === 'transfer'
-                    ? `${accountMap.get(t.account_id) ?? 'Unknown account'} → ${t.transfer_account_id ? accountMap.get(t.transfer_account_id) ?? 'Unknown target' : 'No target'}`
-                    : `${accountMap.get(t.account_id) ?? 'Unknown account'}${t.category_id ? ` · ${categoryMap.get(t.category_id) ?? 'Unknown category'}` : ''}`}
-                </div>
-                <div className="mt-1 text-sm text-[--text-muted]">{t.note ?? 'No note'}</div>
-                {rowTags.length ? (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {rowTags.map((tag) => (
-                      <span
-                        key={tag.id}
-                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-                        style={{ background: `${tag.color ?? 'var(--accent)'}22`, color: 'var(--text-secondary)' }}
-                      >
-                        <TagIcon size={10} className="shrink-0" />
-                        {tag.name}
-                      </span>
-                    ))}
-                  </div>
+              <div className="flex min-w-0 items-start gap-3">
+                {selectMode ? (
+                  <span className="mt-0.5 shrink-0 text-[--text-secondary]">
+                    {isSelected ? <CheckSquare size={18} className="text-[--accent]" /> : <Square size={18} />}
+                  </span>
                 ) : null}
+                <div className="min-w-0">
+                  <div className="font-mono text-[--text-primary]">{formatMoney(Number(t.amount))} · {t.type}{t.is_planned === false ? ' · unplanned' : ''}</div>
+                  <div className="mt-1 text-sm text-[--text-secondary]">
+                    {t.type === 'transfer'
+                      ? `${accountMap.get(t.account_id) ?? 'Unknown account'} → ${t.transfer_account_id ? accountMap.get(t.transfer_account_id) ?? 'Unknown target' : 'No target'}`
+                      : `${accountMap.get(t.account_id) ?? 'Unknown account'}${t.category_id ? ` · ${categoryMap.get(t.category_id) ?? 'Unknown category'}` : ''}`}
+                  </div>
+                  <div className="mt-1 text-sm text-[--text-muted]">{t.note ?? 'No note'}</div>
+                  {rowTags.length ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {rowTags.map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+                          style={{ background: `${tag.color ?? 'var(--accent)'}22`, color: 'var(--text-secondary)' }}
+                        >
+                          <TagIcon size={10} className="shrink-0" />
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <button onClick={() => startEdit(t)} className="btn-secondary inline-flex items-center gap-1.5 text-sm">
-                  <Pencil size={14} /> Edit
-                </button>
-                <button onClick={() => deleteTxn(t)} className="btn-danger inline-flex items-center gap-1.5 text-sm">
-                  <Trash2 size={14} /> Delete
-                </button>
-              </div>
+              {!selectMode ? (
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => startEdit(t)} className="btn-secondary inline-flex items-center gap-1.5 text-sm">
+                    <Pencil size={14} /> Edit
+                  </button>
+                  <button onClick={() => deleteTxn(t)} className="btn-danger inline-flex items-center gap-1.5 text-sm">
+                    <Trash2 size={14} /> Delete
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
           );
         }) : <div className="surface-card p-4 text-sm text-[--text-secondary]">No transactions match the current filters.</div>}
       </div>
-      <AnimatePresence>{popup}</AnimatePresence>
+
+      {selectMode && selectedIds.size ? (
+        <SelectionBar count={selectedIds.size} onDelete={deleteSelected} onDone={exitSelectMode} />
+      ) : null}
     </div>
+  );
+}
+
+function SelectionBar({ count, onDelete, onDone }: { count: number; onDelete: () => void; onDone: () => void }) {
+  // Rendered through a portal so this fixed bar stays pinned to the viewport rather than
+  // the page-transition wrapper, which applies a CSS transform and would otherwise become
+  // its containing block (see components/Sidebar.tsx for the same issue).
+  return createPortal(
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 16 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+        className="fixed inset-x-0 z-50 flex justify-center px-4 bottom-[calc(env(safe-area-inset-bottom)+9.25rem)] lg:bottom-6"
+      >
+        <div className="glass-1 flex items-center gap-3 rounded-full border border-[--border] px-4 py-2.5 shadow-lg">
+          <span className="text-sm font-medium">{count} selected</span>
+          <button onClick={onDelete} className="btn-danger inline-flex items-center gap-1.5 text-sm">
+            <Trash2 size={14} /> Delete selected
+          </button>
+          <button onClick={onDone} className="btn-ghost text-sm">
+            Done
+          </button>
+        </div>
+      </motion.div>
+    </AnimatePresence>,
+    document.body
   );
 }
 
@@ -802,253 +933,5 @@ function Stat({ title, value, mono = false }: { title: string; value: string; mo
       <div className="kicker">{title}</div>
       <div className={`mt-1 text-xl ${mono ? 'font-mono' : 'font-semibold'}`}>{value}</div>
     </div>
-  );
-}
-
-type TransactionsPopupProps = {
-  mode: 'month' | 'search' | 'filters';
-  onClose: () => void;
-  onResetAll: () => void;
-  onQuickWindow: (direction: -1 | 0 | 1) => void;
-  setWindowMonthKey: (value: string) => void;
-  windowMonthKey: string;
-  currentMonthKey: string;
-  windowLabel: string;
-  transactionsCount: number;
-  search: string;
-  setSearch: (value: string) => void;
-  activeFilterCount: number;
-  accounts: Account[];
-  categories: Category[];
-  filterAccountId: string;
-  setFilterAccountId: (value: string) => void;
-  filterType: 'all' | Transaction['type'];
-  setFilterType: (value: 'all' | Transaction['type']) => void;
-  filterPlanned: PlannedFilter;
-  setFilterPlanned: (value: PlannedFilter) => void;
-  filterCategoryId: string;
-  setFilterCategoryId: (value: string) => void;
-  dateFrom: string;
-  setDateFrom: (value: string) => void;
-  dateTo: string;
-  setDateTo: (value: string) => void;
-  filteredTransactionsCount: number;
-  visibleStats: { income: number; expense: number; transfers: number };
-};
-
-function TransactionsPopup({
-  mode,
-  onClose,
-  onResetAll,
-  onQuickWindow,
-  setWindowMonthKey,
-  windowMonthKey,
-  currentMonthKey,
-  windowLabel,
-  transactionsCount,
-  search,
-  setSearch,
-  activeFilterCount,
-  accounts,
-  categories,
-  filterAccountId,
-  setFilterAccountId,
-  filterType,
-  setFilterType,
-  filterPlanned,
-  setFilterPlanned,
-  filterCategoryId,
-  setFilterCategoryId,
-  dateFrom,
-  setDateFrom,
-  dateTo,
-  setDateTo,
-  filteredTransactionsCount,
-  visibleStats,
-}: TransactionsPopupProps) {
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-
-    document.body.style.overflow = 'hidden';
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = '';
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [onClose]);
-
-  return createPortal(
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.15 }}
-      className="fixed inset-0 z-[60] bg-black/60 px-3 py-3 backdrop-blur-sm sm:px-4 sm:py-4"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.97, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.98, y: 4 }}
-        transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-        className="mx-auto flex h-full w-full max-w-4xl items-stretch"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="surface-card flex max-h-[calc(100vh-1.5rem)] w-full flex-col overflow-hidden sm:max-h-[calc(100vh-2rem)]">
-          <div className="border-b border-[--border] px-4 py-4 sm:px-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <div className="kicker">Transactions</div>
-                <h2 className="mt-1 text-lg font-semibold sm:text-xl">
-                  {mode === 'search' ? 'Search' : mode === 'filters' ? 'Filters' : 'Month'}
-                </h2>
-                <p className="mt-1 text-sm text-[--text-secondary]">
-                  {mode === 'search'
-                    ? 'Find notes, amounts, accounts, or categories.'
-                    : mode === 'filters'
-                      ? 'Narrow the current month by account, type, category, and date.'
-                      : 'Jump between months without leaving the page.'}
-                </p>
-              </div>
-              <button onClick={onClose} className="btn-ghost inline-flex shrink-0 items-center gap-1.5 px-3 py-2 text-sm">
-                <X size={14} /> Close
-              </button>
-            </div>
-          </div>
-
-          <div className={`grid flex-1 gap-4 overflow-y-auto px-4 py-4 sm:px-5 ${mode === 'filters' ? 'lg:grid-cols-[1.1fr_1fr]' : ''}`}>
-            <section className="space-y-4">
-              {mode === 'month' || mode === 'filters' ? (
-                <div className="surface-soft p-4">
-                <div className="kicker">Date window</div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button onClick={() => onQuickWindow(-1)} className="btn-secondary text-sm">
-                    ← Previous
-                  </button>
-                  <button onClick={() => onQuickWindow(0)} className="btn-ghost text-sm">
-                    This month
-                  </button>
-                  <button onClick={() => onQuickWindow(1)} className="btn-secondary text-sm" disabled={windowMonthKey >= currentMonthKey}>
-                    Next →
-                  </button>
-                </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <label className="space-y-2 text-sm text-[--text-secondary]">
-                    Month
-                    <input className="field" type="month" value={windowMonthKey} onChange={(e) => setWindowMonthKey(e.target.value)} />
-                  </label>
-                  <div className="surface-card p-4">
-                    <div className="kicker">Current view</div>
-                    <div className="mt-1 font-semibold">{windowLabel}</div>
-                    <div className="mt-1 text-sm text-[--text-secondary]">{transactionsCount} rows loaded in this window</div>
-                  </div>
-                </div>
-              </div>
-              ) : null}
-
-              {mode === 'search' ? (
-              <div className="surface-soft p-4">
-                <div className="kicker">Search</div>
-                <label className="mt-2 block text-sm text-[--text-secondary]">
-                  Find by note, account, category, amount, or transfer target
-                  <input
-                    className="field mt-2"
-                    placeholder="Search transactions"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    autoFocus={mode === 'search'}
-                  />
-                </label>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {search ? <button onClick={() => setSearch('')} className="btn-ghost text-sm">Clear search</button> : null}
-                </div>
-              </div>
-              ) : null}
-            </section>
-
-            {mode === 'filters' ? (
-              <section className="space-y-4">
-                <div className="surface-soft p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="kicker">Filters</div>
-                      <div className="mt-1 font-medium">Narrow results</div>
-                    </div>
-                    {activeFilterCount ? <span className="rounded-full border border-[--border] px-2.5 py-1 text-xs text-[--text-secondary]">{activeFilterCount} active</span> : null}
-                  </div>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <select className="field" value={filterAccountId} onChange={(e) => setFilterAccountId(e.target.value)}>
-                      <option value="all">All accounts</option>
-                      {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
-                    </select>
-                    <select className="field" value={filterType} onChange={(e) => setFilterType(e.target.value as 'all' | Transaction['type'])}>
-                      <option value="all">All types</option>
-                      <option value="expense">Expense</option>
-                      <option value="income">Income</option>
-                      <option value="transfer">Transfer</option>
-                    </select>
-                    <select className="field" value={filterPlanned} onChange={(e) => setFilterPlanned(e.target.value as PlannedFilter)}>
-                      <option value="all">All planned states</option>
-                      <option value="planned">Planned</option>
-                      <option value="unplanned">Unplanned</option>
-                    </select>
-                    <select className="field" value={filterCategoryId} onChange={(e) => setFilterCategoryId(e.target.value)}>
-                      <option value="all">All categories</option>
-                      {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                    </select>
-                    <input className="field" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                    <input className="field" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-                  </div>
-                </div>
-
-                <div className="surface-soft p-4">
-                  <div className="kicker">Overview</div>
-                  {/* This block sits in the narrower half of the filters-mode two-column
-                      layout, not the full popup width — capped at 2 columns (unlike the
-                      month/search variant below) so amounts like "₹60,000.00" don't
-                      overflow into the next cell at 4-up. */}
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <Stat title="Visible rows" value={String(filteredTransactionsCount)} />
-                    <Stat title="Income" value={formatMoney(visibleStats.income)} mono />
-                    <Stat title="Expense" value={formatMoney(visibleStats.expense)} mono />
-                    <Stat title="Transfers" value={String(visibleStats.transfers)} />
-                  </div>
-                </div>
-              </section>
-            ) : (
-              <section className="space-y-4">
-                <div className="surface-soft p-4">
-                  <div className="kicker">Overview</div>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <Stat title="Visible rows" value={String(filteredTransactionsCount)} />
-                    <Stat title="Income" value={formatMoney(visibleStats.income)} mono />
-                    <Stat title="Expense" value={formatMoney(visibleStats.expense)} mono />
-                    <Stat title="Transfers" value={String(visibleStats.transfers)} />
-                  </div>
-                </div>
-              </section>
-            )}
-          </div>
-
-          <div className="border-t border-[--border] px-4 py-4 sm:px-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-sm text-[--text-secondary]">{activeFilterCount || search ? 'Filters are active.' : 'No filters applied.'}</div>
-              <div className="flex flex-wrap gap-2">
-                <button onClick={onResetAll} className="btn-ghost text-sm">
-                  Reset all
-                </button>
-                <button onClick={onClose} className="btn-primary text-sm">
-                  Done
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-    </motion.div>,
-    document.body
   );
 }
