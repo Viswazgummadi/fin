@@ -1,9 +1,8 @@
-import { QuickSpendSettings } from '../../../components/QuickSpendSettings';
-import { getAccounts } from '../../../lib/data';
 import Link from 'next/link';
-import { Wallet, Tags, Tag, Users, Repeat, Target, ShieldAlert, CalendarDays, type LucideIcon } from 'lucide-react';
+import { Wallet, Tags, Tag, Users, Repeat, Target, ShieldAlert, CalendarDays, Zap, type LucideIcon } from 'lucide-react';
 
 const manageLinks: [string, string, LucideIcon][] = [
+  ['Quick spend', '/manage/quick-spend', Zap],
   ['Accounts', '/accounts', Wallet],
   ['Categories', '/categories', Tags],
   ['Tags', '/tags', Tag],
@@ -14,18 +13,13 @@ const manageLinks: [string, string, LucideIcon][] = [
   ['Calendar', '/calendar', CalendarDays],
 ];
 
-export const dynamic = 'force-dynamic';
-
-export default async function ManagePage() {
-  const accounts = await getAccounts();
-
+export default function ManagePage() {
   return (
     <div className="space-y-6 fade-up">
       <div className="page-header">
         <h1 className="page-title">Manage</h1>
         <p className="page-copy">Configure accounts, structure, and quick-spend shortcuts.</p>
       </div>
-      <QuickSpendSettings accounts={accounts} />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {manageLinks.map(([label, href, Icon]) => (

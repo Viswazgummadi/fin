@@ -140,8 +140,8 @@ export function QuickSpendSettings({ accounts }: { accounts: Account[] }) {
     <section className="surface-card p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="font-semibold">Quick spend</h2>
-          <p className="text-sm text-[--text-secondary]">Configure the fast-capture buttons shown in Quick Add.</p>
+          <div className="kicker">Quick spend</div>
+          <div className="mt-1 font-semibold">Fast-capture buttons</div>
         </div>
         <div className="flex gap-2">
           <button onClick={reset} className="btn-secondary text-sm">
