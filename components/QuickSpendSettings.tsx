@@ -28,13 +28,14 @@ export function QuickSpendSettings({ accounts }: { accounts: Account[] }) {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState('');
 
-  const { data: remoteConfig, isLoading } = useQuery({
+  const { data: remoteConfig } = useQuery({
     queryKey: queryKeys.quickSpendConfig,
     queryFn: async () => {
       if (!supabase) return null;
       return fetchRemoteQuickSpendConfig(supabase);
     },
     enabled: !!supabase,
+    staleTime: 60_000,
   });
 
   const [config, setConfig] = useState<QuickSpendConfig>(() => normalizeQuickSpendConfig(readQuickSpendConfig(), accounts[0]?.id));
@@ -134,8 +135,6 @@ export function QuickSpendSettings({ accounts }: { accounts: Account[] }) {
     setConfig(next);
     mutation.mutate(next);
   };
-
-  if (isLoading) return <div className="surface-card p-4 text-sm text-[--text-secondary]">Loading…</div>;
 
   return (
     <section className="surface-card p-4">

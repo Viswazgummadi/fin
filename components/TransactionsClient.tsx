@@ -668,8 +668,13 @@ export function TransactionsClient({
         </div>
       ) : (
         <div className="surface-card flex flex-wrap items-center justify-between gap-3 p-4">
-          <div className="text-sm font-medium">
-            {selectedIds.size ? `${selectedIds.size} selected` : 'Tap transactions below to select them'}
+          <div className="flex items-center gap-3">
+            <button onClick={exitSelectMode} aria-label="Exit select mode" className="btn-ghost inline-flex items-center gap-1.5 p-2">
+              <ChevronLeft size={16} />
+            </button>
+            <div className="text-sm font-medium">
+              {selectedIds.size ? `${selectedIds.size} selected` : 'Tap transactions below to select them'}
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <button onClick={selectAllVisible} className="btn-secondary text-sm" disabled={!filteredTransactions.length}>
@@ -1013,33 +1018,49 @@ function MonthPopover({
             transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
             className="surface-card absolute left-0 z-50 mt-2 w-64 space-y-3 p-3 shadow-lg"
           >
-            <div className="flex items-center justify-between gap-2">
-              <button onClick={() => onShift(-1)} className="btn-ghost p-2" aria-label="Previous month">
-                <ChevronLeft size={16} />
-              </button>
-              <div className="text-sm font-medium">{formatMonthLabel(windowMonthKey)}</div>
-              <button
-                onClick={() => onShift(1)}
-                className="btn-ghost p-2"
-                aria-label="Next month"
-                disabled={!allTime && windowMonthKey >= currentMonthKey}
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-            <input
-              type="month"
-              className="field text-sm"
-              value={windowMonthKey}
-              onChange={(e) => e.target.value && onChangeMonth(e.target.value)}
-              aria-label="Jump to month"
-            />
-            <button
-              onClick={onToggleAllTime}
-              className={`btn-secondary inline-flex w-full items-center justify-center gap-1.5 text-sm ${allTime ? 'bg-[--accent-wash] text-[--text-primary]' : ''}`}
-            >
-              <History size={14} /> {allTime ? 'Showing all time' : 'Show all time instead'}
-            </button>
+            {allTime ? (
+              <>
+                <div className="rounded-[--radius-xs] border border-[--accent]/30 bg-[--accent-wash] px-3 py-2 text-sm text-[--text-primary]">
+                  Showing every transaction, all time.
+                </div>
+                <button
+                  onClick={onToggleAllTime}
+                  className="btn-primary inline-flex w-full items-center justify-center gap-1.5 text-sm"
+                >
+                  <CalendarIcon size={14} /> Back to {formatMonthLabel(windowMonthKey)}
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <button onClick={() => onShift(-1)} className="btn-ghost p-2" aria-label="Previous month">
+                    <ChevronLeft size={16} />
+                  </button>
+                  <div className="text-sm font-medium">{formatMonthLabel(windowMonthKey)}</div>
+                  <button
+                    onClick={() => onShift(1)}
+                    className="btn-ghost p-2"
+                    aria-label="Next month"
+                    disabled={windowMonthKey >= currentMonthKey}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+                <input
+                  type="month"
+                  className="field text-sm"
+                  value={windowMonthKey}
+                  onChange={(e) => e.target.value && onChangeMonth(e.target.value)}
+                  aria-label="Jump to month"
+                />
+                <button
+                  onClick={onToggleAllTime}
+                  className="btn-secondary inline-flex w-full items-center justify-center gap-1.5 text-sm"
+                >
+                  <History size={14} /> View all-time totals
+                </button>
+              </>
+            )}
           </motion.div>
         ) : null}
       </AnimatePresence>
