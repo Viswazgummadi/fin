@@ -841,49 +841,66 @@ export function TransactionsClient({
       </AnimatePresence>
 
       <div className={`space-y-2 ${selectMode && selectedIds.size ? 'pb-40 lg:pb-24' : ''}`}>
-        {filteredTransactions.length ? filteredTransactions.map((t) => {
-          const rowTags = tagsByTransaction[t.id] ?? [];
-          const isSelected = selectedIds.has(t.id);
-          return (
-          <div
-            key={t.id}
-            onClick={selectMode ? () => toggleSelected(t.id) : undefined}
-            onDoubleClick={!selectMode ? () => setDetailsTxnId(t.id) : undefined}
-            className={`data-row cursor-pointer touch-manipulation p-4 ${isSelected ? 'border-[--accent] ring-1 ring-[--accent]/40' : ''}`}
-          >
-            <div className="flex min-w-0 items-start gap-3">
-              {selectMode ? (
-                <span className="mt-0.5 shrink-0 text-[--text-secondary]">
-                  {isSelected ? <CheckSquare size={18} className="text-[--accent]" /> : <Square size={18} />}
-                </span>
-              ) : null}
-              <div className="min-w-0">
-                <div className="font-mono text-[--text-primary]">{formatMoney(Number(t.amount))} · {t.type}</div>
-                <div className="mt-1 text-sm text-[--text-secondary]">
-                  {t.type === 'transfer'
-                    ? `${accountMap.get(t.account_id) ?? 'Unknown account'} → ${t.transfer_account_id ? accountMap.get(t.transfer_account_id) ?? 'Unknown target' : 'No target'}`
-                    : `${accountMap.get(t.account_id) ?? 'Unknown account'}${t.category_id ? ` · ${categoryMap.get(t.category_id) ?? 'Unknown category'}` : ''}`}
-                </div>
-                <div className="mt-1 text-sm text-[--text-muted]">{t.note ?? 'No note'}</div>
-                {rowTags.length ? (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {rowTags.map((tag) => (
-                      <span
-                        key={tag.id}
-                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-                        style={{ background: `${tag.color ?? 'var(--accent)'}22`, color: 'var(--text-secondary)' }}
-                      >
-                        <TagIcon size={10} className="shrink-0" />
-                        {tag.name}
-                      </span>
-                    ))}
-                  </div>
+        <AnimatePresence mode="popLayout" initial={false}>
+          {filteredTransactions.length ? filteredTransactions.map((t) => {
+            const rowTags = tagsByTransaction[t.id] ?? [];
+            const isSelected = selectedIds.has(t.id);
+            return (
+            <motion.div
+              key={t.id}
+              layout="position"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              onClick={selectMode ? () => toggleSelected(t.id) : undefined}
+              onDoubleClick={!selectMode ? () => setDetailsTxnId(t.id) : undefined}
+              className={`data-row cursor-pointer touch-manipulation p-4 ${isSelected ? 'border-[--accent] ring-1 ring-[--accent]/40' : ''}`}
+            >
+              <div className="flex min-w-0 items-start gap-3">
+                {selectMode ? (
+                  <span className="mt-0.5 shrink-0 text-[--text-secondary]">
+                    {isSelected ? <CheckSquare size={18} className="text-[--accent]" /> : <Square size={18} />}
+                  </span>
                 ) : null}
+                <div className="min-w-0">
+                  <div className="font-mono text-[--text-primary]">{formatMoney(Number(t.amount))} · {t.type}</div>
+                  <div className="mt-1 text-sm text-[--text-secondary]">
+                    {t.type === 'transfer'
+                      ? `${accountMap.get(t.account_id) ?? 'Unknown account'} → ${t.transfer_account_id ? accountMap.get(t.transfer_account_id) ?? 'Unknown target' : 'No target'}`
+                      : `${accountMap.get(t.account_id) ?? 'Unknown account'}${t.category_id ? ` · ${categoryMap.get(t.category_id) ?? 'Unknown category'}` : ''}`}
+                  </div>
+                  <div className="mt-1 text-sm text-[--text-muted]">{t.note ?? 'No note'}</div>
+                  {rowTags.length ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {rowTags.map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+                          style={{ background: `${tag.color ?? 'var(--accent)'}22`, color: 'var(--text-secondary)' }}
+                        >
+                          <TagIcon size={10} className="shrink-0" />
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          </div>
-          );
-        }) : <div className="surface-card p-4 text-sm text-[--text-secondary]">No transactions match the current filters.</div>}
+            </motion.div>
+            );
+          }) : (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="surface-card p-4 text-sm text-[--text-secondary]"
+            >
+              No transactions match the current filters.
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {selectMode && selectedIds.size ? (
