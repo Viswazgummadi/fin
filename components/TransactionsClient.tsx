@@ -79,6 +79,7 @@ export function TransactionsClient({
   const [openPopover, setOpenPopover] = useState<PopoverKey>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [detailsTxnId, setDetailsTxnId] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
   const categoryOptions = useMemo(() => categories.filter((c) => c.kind === 'both' || c.kind === type), [categories, type]);
@@ -554,6 +555,9 @@ export function TransactionsClient({
     setSelectedIds(new Set());
   };
 
+  const detailsTxn = detailsTxnId ? transactions.find((t) => t.id === detailsTxnId) ?? null : null;
+  const closeDetails = () => setDetailsTxnId(null);
+
   const selectAllVisible = () => {
     setSelectedIds(new Set(filteredTransactions.map((t) => t.id)));
   };
@@ -844,49 +848,38 @@ export function TransactionsClient({
           <div
             key={t.id}
             onClick={selectMode ? () => toggleSelected(t.id) : undefined}
-            className={`data-row p-4 ${selectMode ? 'cursor-pointer' : ''} ${isSelected ? 'border-[--accent] ring-1 ring-[--accent]/40' : ''}`}
+            onDoubleClick={!selectMode ? () => setDetailsTxnId(t.id) : undefined}
+            className={`data-row cursor-pointer touch-manipulation p-4 ${isSelected ? 'border-[--accent] ring-1 ring-[--accent]/40' : ''}`}
           >
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex min-w-0 items-start gap-3">
-                {selectMode ? (
-                  <span className="mt-0.5 shrink-0 text-[--text-secondary]">
-                    {isSelected ? <CheckSquare size={18} className="text-[--accent]" /> : <Square size={18} />}
-                  </span>
-                ) : null}
-                <div className="min-w-0">
-                  <div className="font-mono text-[--text-primary]">{formatMoney(Number(t.amount))} · {t.type}</div>
-                  <div className="mt-1 text-sm text-[--text-secondary]">
-                    {t.type === 'transfer'
-                      ? `${accountMap.get(t.account_id) ?? 'Unknown account'} → ${t.transfer_account_id ? accountMap.get(t.transfer_account_id) ?? 'Unknown target' : 'No target'}`
-                      : `${accountMap.get(t.account_id) ?? 'Unknown account'}${t.category_id ? ` · ${categoryMap.get(t.category_id) ?? 'Unknown category'}` : ''}`}
-                  </div>
-                  <div className="mt-1 text-sm text-[--text-muted]">{t.note ?? 'No note'}</div>
-                  {rowTags.length ? (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {rowTags.map((tag) => (
-                        <span
-                          key={tag.id}
-                          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-                          style={{ background: `${tag.color ?? 'var(--accent)'}22`, color: 'var(--text-secondary)' }}
-                        >
-                          <TagIcon size={10} className="shrink-0" />
-                          {tag.name}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-              {!selectMode ? (
-                <div className="flex flex-wrap gap-2">
-                  <button onClick={() => startEdit(t)} className="btn-secondary inline-flex items-center gap-1.5 text-sm">
-                    <Pencil size={14} /> Edit
-                  </button>
-                  <button onClick={() => deleteTxn(t)} className="btn-danger inline-flex items-center gap-1.5 text-sm">
-                    <Trash2 size={14} /> Delete
-                  </button>
-                </div>
+            <div className="flex min-w-0 items-start gap-3">
+              {selectMode ? (
+                <span className="mt-0.5 shrink-0 text-[--text-secondary]">
+                  {isSelected ? <CheckSquare size={18} className="text-[--accent]" /> : <Square size={18} />}
+                </span>
               ) : null}
+              <div className="min-w-0">
+                <div className="font-mono text-[--text-primary]">{formatMoney(Number(t.amount))} · {t.type}</div>
+                <div className="mt-1 text-sm text-[--text-secondary]">
+                  {t.type === 'transfer'
+                    ? `${accountMap.get(t.account_id) ?? 'Unknown account'} → ${t.transfer_account_id ? accountMap.get(t.transfer_account_id) ?? 'Unknown target' : 'No target'}`
+                    : `${accountMap.get(t.account_id) ?? 'Unknown account'}${t.category_id ? ` · ${categoryMap.get(t.category_id) ?? 'Unknown category'}` : ''}`}
+                </div>
+                <div className="mt-1 text-sm text-[--text-muted]">{t.note ?? 'No note'}</div>
+                {rowTags.length ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {rowTags.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+                        style={{ background: `${tag.color ?? 'var(--accent)'}22`, color: 'var(--text-secondary)' }}
+                      >
+                        <TagIcon size={10} className="shrink-0" />
+                        {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
           );
@@ -896,7 +889,148 @@ export function TransactionsClient({
       {selectMode && selectedIds.size ? (
         <SelectionBar count={selectedIds.size} onDelete={deleteSelected} onDone={exitSelectMode} />
       ) : null}
+
+      <AnimatePresence>
+        {detailsTxn ? (
+          <TransactionDetailModal
+            key={detailsTxn.id}
+            txn={detailsTxn}
+            accountMap={accountMap}
+            categoryMap={categoryMap}
+            tags={tagsByTransaction[detailsTxn.id] ?? []}
+            onClose={closeDetails}
+            onEdit={() => {
+              closeDetails();
+              startEdit(detailsTxn);
+            }}
+            onDelete={() => {
+              closeDetails();
+              deleteTxn(detailsTxn);
+            }}
+          />
+        ) : null}
+      </AnimatePresence>
     </div>
+  );
+}
+
+function TransactionDetailModal({
+  txn,
+  accountMap,
+  categoryMap,
+  tags,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  txn: Transaction;
+  accountMap: Map<string, string>;
+  categoryMap: Map<string, string>;
+  tags: Pick<Tag, 'id' | 'name' | 'color'>[];
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
+  const dateLabel = new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(
+    new Date(txn.occurred_at)
+  );
+
+  return createPortal(
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      className="fixed inset-0 z-[60] flex items-end bg-black/60 px-3 py-3 backdrop-blur-sm sm:items-center sm:px-4 sm:py-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.97, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.98, y: 8 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+        className="surface-card mx-auto w-full max-w-md space-y-4 p-5"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="kicker">Transaction</div>
+            <h2 className="mt-1 truncate font-mono text-2xl text-[--text-primary]">{formatMoney(Number(txn.amount))}</h2>
+            <div className="mt-1 text-sm capitalize text-[--text-secondary]">{txn.type}</div>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="btn-ghost shrink-0 p-2">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between gap-3">
+            <span className="text-[--text-muted]">Date</span>
+            <span className="text-right text-[--text-primary]">{dateLabel}</span>
+          </div>
+          <div className="flex justify-between gap-3">
+            <span className="text-[--text-muted]">{txn.type === 'transfer' ? 'From' : 'Account'}</span>
+            <span className="text-right text-[--text-primary]">{accountMap.get(txn.account_id) ?? 'Unknown account'}</span>
+          </div>
+          {txn.type === 'transfer' ? (
+            <div className="flex justify-between gap-3">
+              <span className="text-[--text-muted]">To</span>
+              <span className="text-right text-[--text-primary]">
+                {txn.transfer_account_id ? accountMap.get(txn.transfer_account_id) ?? 'Unknown target' : 'No target'}
+              </span>
+            </div>
+          ) : (
+            <div className="flex justify-between gap-3">
+              <span className="text-[--text-muted]">Category</span>
+              <span className="text-right text-[--text-primary]">
+                {txn.category_id ? categoryMap.get(txn.category_id) ?? 'Unknown category' : 'Uncategorized'}
+              </span>
+            </div>
+          )}
+          <div className="flex justify-between gap-3">
+            <span className="shrink-0 text-[--text-muted]">Note</span>
+            <span className="text-right text-[--text-primary]">{txn.note || 'No note'}</span>
+          </div>
+        </div>
+
+        {tags.length ? (
+          <div className="flex flex-wrap gap-1.5">
+            {tags.map((tag) => (
+              <span
+                key={tag.id}
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+                style={{ background: `${tag.color ?? 'var(--accent)'}22`, color: 'var(--text-secondary)' }}
+              >
+                <TagIcon size={10} className="shrink-0" />
+                {tag.name}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="flex gap-2 pt-1">
+          <button onClick={onEdit} className="btn-secondary inline-flex flex-1 items-center justify-center gap-1.5 text-sm">
+            <Pencil size={14} /> Edit
+          </button>
+          <button onClick={onDelete} className="btn-danger inline-flex flex-1 items-center justify-center gap-1.5 text-sm">
+            <Trash2 size={14} /> Delete
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>,
+    document.body
   );
 }
 
