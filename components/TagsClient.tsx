@@ -34,6 +34,18 @@ export function TagsClient({ initialTags }: { initialTags: Tag[] }) {
     setName('');
   };
 
+  const remove = async (id: string) => {
+    if (!supabase) return;
+    if (!window.confirm('Delete this tag? It will be removed from any transactions it is applied to.')) return;
+    const { error } = await supabase.from('tags').delete().eq('id', id);
+    if (!error) {
+      setTags(tags.filter((t) => t.id !== id));
+      queryClient.invalidateQueries({ queryKey: queryKeys.tags });
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactionWindows });
+      queryClient.invalidateQueries({ queryKey: queryKeys.analysisTransactions });
+    }
+  };
+
   return (
     <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
       <section className="surface-card space-y-3 p-4">
@@ -78,6 +90,14 @@ export function TagsClient({ initialTags }: { initialTags: Tag[] }) {
               >
                 <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: tag.color ?? '#6366f1' }} />
                 {tag.name}
+                <button
+                  type="button"
+                  onClick={() => remove(tag.id)}
+                  aria-label={`Delete tag ${tag.name}`}
+                  className="ml-1 text-[--text-muted] transition hover:text-[--danger]"
+                >
+                  ×
+                </button>
               </span>
             ))}
           </div>
