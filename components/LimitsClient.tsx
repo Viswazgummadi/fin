@@ -1,34 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Category, Limit, Tag } from '../lib/types';
-import type { TransactionWithTags } from '../lib/analysis';
+import { spentForLimit, type TransactionWithTags } from '../lib/analysis';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 import { formatMoney } from '../lib/insights';
+import { queryKeys } from '../lib/query-keys';
 import { RadialProgress } from './charts/RadialProgress';
-
-function periodStart(period: Limit['period'], reference = new Date()) {
-  const start = new Date(reference);
-  if (period === 'weekly') {
-    const day = start.getDay();
-    start.setDate(start.getDate() - day);
-  } else {
-    start.setDate(1);
-  }
-  start.setHours(0, 0, 0, 0);
-  return start;
-}
-
-function spentForLimit(limit: Limit, transactions: TransactionWithTags[]) {
-  const start = periodStart(limit.period);
-  return transactions.reduce((sum, txn) => {
-    if (txn.deleted_at || txn.type !== 'expense') return sum;
-    if (new Date(txn.occurred_at) < start) return sum;
-    if (limit.scope === 'category' && txn.category_id !== limit.scope_ref_id) return sum;
-    if (limit.scope === 'tag' && !txn.tags.some((tag) => tag.id === limit.scope_ref_id)) return sum;
-    return sum + Number(txn.amount || 0);
-  }, 0);
-}
 
 export function LimitsClient({
   initialLimits,
@@ -42,6 +21,7 @@ export function LimitsClient({
   transactions: TransactionWithTags[];
 }) {
   const supabase = createSupabaseBrowserClient();
+  const queryClient = useQueryClient();
   const [limits, setLimits] = useState(initialLimits);
   const [scope, setScope] = useState<Limit['scope']>('category');
   const [scopeRefId, setScopeRefId] = useState(categories[0]?.id ?? tags[0]?.id ?? '');
@@ -62,12 +42,18 @@ export function LimitsClient({
     const payload = { scope, scope_ref_id: scope === 'overall' ? null : scopeRefId || null, period, amount, active: true };
     if (editingId) {
       const { data, error } = await supabase.from('limits').update(payload).eq('id', editingId).select('*').single();
-      if (!error && data) setLimits(limits.map((item) => (item.id === editingId ? data : item)));
+      if (!error && data) {
+        setLimits(limits.map((item) => (item.id === editingId ? data : item)));
+        queryClient.invalidateQueries({ queryKey: queryKeys.limits });
+      }
       reset();
       return;
     }
     const { data, error } = await supabase.from('limits').insert(payload).select('*').single();
-    if (!error && data) setLimits([data, ...limits]);
+    if (!error && data) {
+      setLimits([data, ...limits]);
+      queryClient.invalidateQueries({ queryKey: queryKeys.limits });
+    }
     reset();
   };
 
@@ -82,7 +68,10 @@ export function LimitsClient({
   const disable = async (id: string) => {
     if (!supabase) return;
     const { error } = await supabase.from('limits').update({ active: false }).eq('id', id);
-    if (!error) setLimits(limits.filter((item) => item.id !== id));
+    if (!error) {
+      setLimits(limits.filter((item) => item.id !== id));
+      queryClient.invalidateQueries({ queryKey: queryKeys.limits });
+    }
   };
 
   useEffect(() => {

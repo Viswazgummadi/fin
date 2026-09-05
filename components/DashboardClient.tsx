@@ -79,7 +79,7 @@ export function DashboardClient() {
   });
 
   const recurringQuery = useQuery({
-    queryKey: ['dashboard-recurring-rules'],
+    queryKey: queryKeys.dashboardRecurringRules,
     queryFn: async () => {
       if (!supabase) return [];
       const { data, error } = await supabase

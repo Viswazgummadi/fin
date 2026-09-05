@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Category } from '../lib/types';
+import { queryKeys } from '../lib/query-keys';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 
 const KIND_COLOR: Record<Category['kind'], string> = {
@@ -12,6 +14,7 @@ const KIND_COLOR: Record<Category['kind'], string> = {
 
 export function CategoriesClient({ initialCategories }: { initialCategories: Category[] }) {
   const supabase = createSupabaseBrowserClient();
+  const queryClient = useQueryClient();
   const [categories, setCategories] = useState(initialCategories);
   const [name, setName] = useState('');
   const [kind, setKind] = useState<Category['kind']>('expense');
@@ -30,12 +33,18 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
     const essentialValue = isEssential === 'unknown' ? null : isEssential === 'essential';
     if (editingId) {
       const { data, error } = await supabase.from('categories').update({ name, kind, is_essential: essentialValue }).eq('id', editingId).select('*').single();
-      if (!error && data) setCategories(categories.map((c) => (c.id === editingId ? data : c)));
+      if (!error && data) {
+        setCategories(categories.map((c) => (c.id === editingId ? data : c)));
+        queryClient.invalidateQueries({ queryKey: queryKeys.categories });
+      }
       reset();
       return;
     }
     const { data, error } = await supabase.from('categories').insert({ name, kind, is_essential: essentialValue }).select('*').single();
-    if (!error && data) setCategories([data, ...categories]);
+    if (!error && data) {
+      setCategories([data, ...categories]);
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories });
+    }
     reset();
   };
 
@@ -49,7 +58,10 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
   const archive = async (id: string) => {
     if (!supabase) return;
     const { error } = await supabase.from('categories').update({ archived: true }).eq('id', id);
-    if (!error) setCategories(categories.filter((c) => c.id !== id));
+    if (!error) {
+      setCategories(categories.filter((c) => c.id !== id));
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories });
+    }
   };
 
   return (

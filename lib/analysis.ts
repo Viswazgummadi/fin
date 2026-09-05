@@ -1,4 +1,4 @@
-import type { Account, Category, Tag, Transaction } from './types';
+import type { Account, Category, Limit, Tag, Transaction } from './types';
 import { calculateAccountBalances } from './finance';
 import { formatMoney, getMonthKey, shiftToIST, toDateKey } from './insights';
 
@@ -110,7 +110,7 @@ export function computeNetWorthSeries(accounts: Account[], transactions: Transac
 
   const points: { date: string; balance: number }[] = [];
   for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + stepDays)) {
-    const upTo = transactions.filter((t) => !t.deleted_at && shiftToIST(t.occurred_at) <= cursor);
+    const upTo = transactions.filter((t) => !t.deleted_at && new Date(t.occurred_at) <= cursor);
     const balance = [...calculateAccountBalances(accounts, upTo).values()].reduce((sum, v) => sum + v, 0);
     points.push({ date: toDateKey(cursor), balance });
   }
@@ -256,6 +256,32 @@ export function computeEssentialSplit(transactions: Transaction[], categories: C
     else nonEssential += amount;
   }
   return { essential, nonEssential, unspecified };
+}
+
+// ---- Budgets/limits ----
+
+export function limitPeriodStart(period: Limit['period'], reference = new Date()) {
+  const start = new Date(reference);
+  if (period === 'weekly') {
+    const day = start.getDay();
+    start.setDate(start.getDate() - day);
+  } else {
+    start.setDate(1);
+  }
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
+/** Spend against a limit's OWN period window (weekly/monthly), independent of any page-level period filter. */
+export function spentForLimit(limit: Limit, transactions: TransactionWithTags[]) {
+  const start = limitPeriodStart(limit.period);
+  return transactions.reduce((sum, txn) => {
+    if (txn.deleted_at || txn.type !== 'expense') return sum;
+    if (new Date(txn.occurred_at) < start) return sum;
+    if (limit.scope === 'category' && txn.category_id !== limit.scope_ref_id) return sum;
+    if (limit.scope === 'tag' && !txn.tags.some((tag) => tag.id === limit.scope_ref_id)) return sum;
+    return sum + Number(txn.amount || 0);
+  }, 0);
 }
 
 // ---- Comparisons + narrative insights ----

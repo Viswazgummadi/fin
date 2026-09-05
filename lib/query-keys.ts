@@ -10,4 +10,5 @@ export const queryKeys = {
   goals: ['goals'] as const,
   peopleLedger: ['people-ledger'] as const,
   tags: ['tags'] as const,
+  dashboardRecurringRules: ['dashboard-recurring-rules'] as const,
 };

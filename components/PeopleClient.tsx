@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Person, PersonLedger } from '../lib/types';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 import { formatMoney } from '../lib/insights';
+import { queryKeys } from '../lib/query-keys';
 
 const ledgerTypes = ['lent', 'borrowed', 'shared_expense', 'reimbursement', 'settlement'] as const;
 
@@ -11,6 +13,7 @@ const AVATAR_COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'va
 
 export function PeopleClient({ initialPeople, initialLedger }: { initialPeople: Person[]; initialLedger: PersonLedger[] }) {
   const supabase = createSupabaseBrowserClient();
+  const queryClient = useQueryClient();
   const [people, setPeople] = useState(initialPeople);
   const [ledger, setLedger] = useState(initialLedger);
   const [name, setName] = useState('');
@@ -43,7 +46,10 @@ export function PeopleClient({ initialPeople, initialLedger }: { initialPeople: 
     if (!supabase || !name.trim()) return;
     if (editingId) {
       const { data, error } = await supabase.from('people').update({ name, avatar_color: avatarColor }).eq('id', editingId).select('*').single();
-      if (!error && data) setPeople(people.map((p) => (p.id === editingId ? data : p)));
+      if (!error && data) {
+        setPeople(people.map((p) => (p.id === editingId ? data : p)));
+        queryClient.invalidateQueries({ queryKey: queryKeys.peopleLedger });
+      }
       reset();
       return;
     }
@@ -51,6 +57,7 @@ export function PeopleClient({ initialPeople, initialLedger }: { initialPeople: 
     if (!error && data) {
       setPeople([data, ...people]);
       setSelectedPersonId(data.id);
+      queryClient.invalidateQueries({ queryKey: queryKeys.peopleLedger });
     }
     reset();
   };
@@ -67,6 +74,7 @@ export function PeopleClient({ initialPeople, initialLedger }: { initialPeople: 
     if (!error) {
       setPeople(people.filter((p) => p.id !== id));
       if (selectedPersonId === id) setSelectedPersonId(people[0]?.id ?? '');
+      queryClient.invalidateQueries({ queryKey: queryKeys.peopleLedger });
     }
   };
 
@@ -77,7 +85,10 @@ export function PeopleClient({ initialPeople, initialLedger }: { initialPeople: 
       .insert({ person_id: selectedPersonId, type: entryType, amount, note: note || null })
       .select('*')
       .single();
-    if (!error && data) setLedger([data, ...ledger]);
+    if (!error && data) {
+      setLedger([data, ...ledger]);
+      queryClient.invalidateQueries({ queryKey: queryKeys.peopleLedger });
+    }
     setAmount('');
     setNote('');
   };
@@ -91,7 +102,10 @@ export function PeopleClient({ initialPeople, initialLedger }: { initialPeople: 
       .insert({ person_id: selectedPersonId, type: 'settlement', amount: String(balance), note: 'Auto settlement' })
       .select('*')
       .single();
-    if (!error && data) setLedger([data, ...ledger]);
+    if (!error && data) {
+      setLedger([data, ...ledger]);
+      queryClient.invalidateQueries({ queryKey: queryKeys.peopleLedger });
+    }
   };
 
   return (

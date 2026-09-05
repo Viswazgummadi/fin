@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Account, Goal } from '../lib/types';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 import { formatMoney } from '../lib/insights';
+import { queryKeys } from '../lib/query-keys';
 import { RadialProgress } from './charts/RadialProgress';
 
 function goalRatio(goal: Goal) {
@@ -20,6 +22,7 @@ function etaMonths(goal?: Goal) {
 
 export function GoalsClient({ initialGoals, accounts }: { initialGoals: Goal[]; accounts: Account[] }) {
   const supabase = createSupabaseBrowserClient();
+  const queryClient = useQueryClient();
   const [goals, setGoals] = useState(initialGoals);
   const [name, setName] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
@@ -54,7 +57,10 @@ export function GoalsClient({ initialGoals, accounts }: { initialGoals: Goal[]; 
     };
     if (editingId) {
       const { data, error } = await supabase.from('goals').update(payload).eq('id', editingId).select('*').single();
-      if (!error && data) setGoals(goals.map((g) => (g.id === editingId ? data : g)));
+      if (!error && data) {
+        setGoals(goals.map((g) => (g.id === editingId ? data : g)));
+        queryClient.invalidateQueries({ queryKey: queryKeys.goals });
+      }
       reset();
       return;
     }
@@ -62,6 +68,7 @@ export function GoalsClient({ initialGoals, accounts }: { initialGoals: Goal[]; 
     if (!error && data) {
       setGoals([data, ...goals]);
       setSelectedGoalId(data.id);
+      queryClient.invalidateQueries({ queryKey: queryKeys.goals });
     }
     reset();
   };
@@ -79,7 +86,10 @@ export function GoalsClient({ initialGoals, accounts }: { initialGoals: Goal[]; 
   const archiveGoal = async (id: string) => {
     if (!supabase) return;
     const { error } = await supabase.from('goals').update({ archived: true }).eq('id', id);
-    if (!error) setGoals(goals.filter((g) => g.id !== id));
+    if (!error) {
+      setGoals(goals.filter((g) => g.id !== id));
+      queryClient.invalidateQueries({ queryKey: queryKeys.goals });
+    }
   };
 
   const addContribution = async () => {
@@ -95,7 +105,10 @@ export function GoalsClient({ initialGoals, accounts }: { initialGoals: Goal[]; 
         .eq('id', selectedGoalId)
         .select('*')
         .single();
-      if (!goalError && data) setGoals(goals.map((g) => (g.id === selectedGoalId ? data : g)));
+      if (!goalError && data) {
+        setGoals(goals.map((g) => (g.id === selectedGoalId ? data : g)));
+        queryClient.invalidateQueries({ queryKey: queryKeys.goals });
+      }
     }
     setContributionAmount('');
   };

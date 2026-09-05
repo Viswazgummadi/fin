@@ -49,7 +49,7 @@ export function DonutChart({
           <circle cx={cx} cy={cy} r={radius} fill="none" stroke="var(--track)" strokeWidth={thickness} />
           {segments.map((segment) => (
             <motion.circle
-              key={segment.label}
+              key={segment.id ?? `${segment.label}-${segment.index}`}
               cx={cx}
               cy={cy}
               r={radius}
@@ -78,9 +78,9 @@ export function DonutChart({
         </div>
       </div>
       <div className="flex flex-wrap justify-center gap-2 text-xs text-[--text-secondary]">
-        {(active.length ? segments : [{ label: 'No data', color: 'var(--hairline-strong)' }]).map((slice, index) => (
+        {(active.length ? segments : [{ label: 'No data', color: 'var(--hairline-strong)', id: undefined }]).map((slice, index) => (
           <button
-            key={slice.label}
+            key={slice.id ?? `${slice.label}-${index}`}
             type="button"
             onMouseEnter={() => active.length && setHoverIndex(index)}
             onMouseLeave={() => setHoverIndex(null)}

@@ -20,6 +20,7 @@ import {
   computeEssentialSplit,
   generateNarrativeInsights,
   detectAnomalies,
+  spentForLimit,
   pctDelta,
   type CategoryRow,
 } from '../lib/analysis';
@@ -384,9 +385,7 @@ export function AnalysisClient() {
               {limits.length ? (
                 <div className="flex flex-wrap justify-center gap-4">
                   {limits.slice(0, 3).map((limit) => {
-                    const spent = derived.currentTxns
-                      .filter((t) => t.type === 'expense' && (limit.scope === 'overall' || t.category_id === limit.scope_ref_id))
-                      .reduce((s, t) => s + Number(t.amount || 0), 0);
+                    const spent = spentForLimit(limit, transactions);
                     const ratio = Number(limit.amount) > 0 ? spent / Number(limit.amount) : 0;
                     return (
                       <RadialProgress

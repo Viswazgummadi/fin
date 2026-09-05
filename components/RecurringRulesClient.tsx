@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Repeat } from 'lucide-react';
 import type { Account, Category, RecurringRule } from '../lib/types';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 import { formatMoney } from '../lib/insights';
+import { queryKeys } from '../lib/query-keys';
 
 export function RecurringRulesClient({ initialRules, accounts, categories }: { initialRules: RecurringRule[]; accounts: Account[]; categories: Category[] }) {
   const supabase = createSupabaseBrowserClient();
+  const queryClient = useQueryClient();
   const [rules, setRules] = useState(initialRules);
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '');
   const [categoryId, setCategoryId] = useState(categories[0]?.id ?? '');
@@ -42,7 +45,10 @@ export function RecurringRulesClient({ initialRules, accounts, categories }: { i
       active: true,
     };
     const { data, error } = await supabase.from('recurring_rules').insert(payload).select('*').single();
-    if (!error && data) setRules([data, ...rules]);
+    if (!error && data) {
+      setRules([data, ...rules]);
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardRecurringRules });
+    }
     setAmount('');
     setNote('');
   };
@@ -50,7 +56,10 @@ export function RecurringRulesClient({ initialRules, accounts, categories }: { i
   const disable = async (id: string) => {
     if (!supabase) return;
     const { error } = await supabase.from('recurring_rules').update({ active: false }).eq('id', id);
-    if (!error) setRules(rules.filter((rule) => rule.id !== id));
+    if (!error) {
+      setRules(rules.filter((rule) => rule.id !== id));
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardRecurringRules });
+    }
   };
 
   return (

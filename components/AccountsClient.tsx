@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Landmark, Banknote, Wallet as WalletIcon, CreditCard, CircleDollarSign } from 'lucide-react';
 import type { Account, Transaction } from '../lib/types';
 import { calculateAccountBalances } from '../lib/finance';
 import { formatMoney } from '../lib/insights';
+import { queryKeys } from '../lib/query-keys';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 
 const TYPE_ICON: Record<Account['type'], typeof Landmark> = {
@@ -17,6 +19,7 @@ const TYPE_ICON: Record<Account['type'], typeof Landmark> = {
 
 export function AccountsClient({ initialAccounts, transactions }: { initialAccounts: Account[]; transactions: Transaction[] }) {
   const supabase = createSupabaseBrowserClient();
+  const queryClient = useQueryClient();
   const [accounts, setAccounts] = useState(initialAccounts);
   const [name, setName] = useState('');
   const [type, setType] = useState<Account['type']>('bank');
@@ -34,12 +37,18 @@ export function AccountsClient({ initialAccounts, transactions }: { initialAccou
     if (!supabase || !name.trim()) return;
     if (editingId) {
       const { data, error } = await supabase.from('accounts').update({ name, type }).eq('id', editingId).select('*').single();
-      if (!error && data) setAccounts(accounts.map((a) => (a.id === editingId ? data : a)));
+      if (!error && data) {
+        setAccounts(accounts.map((a) => (a.id === editingId ? data : a)));
+        queryClient.invalidateQueries({ queryKey: queryKeys.accounts });
+      }
       reset();
       return;
     }
     const { data, error } = await supabase.from('accounts').insert({ name, type }).select('*').single();
-    if (!error && data) setAccounts([data, ...accounts]);
+    if (!error && data) {
+      setAccounts([data, ...accounts]);
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts });
+    }
     reset();
   };
 
@@ -52,7 +61,10 @@ export function AccountsClient({ initialAccounts, transactions }: { initialAccou
   const archive = async (id: string) => {
     if (!supabase) return;
     const { error } = await supabase.from('accounts').update({ archived: true }).eq('id', id);
-    if (!error) setAccounts(accounts.filter((a) => a.id !== id));
+    if (!error) {
+      setAccounts(accounts.filter((a) => a.id !== id));
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts });
+    }
   };
 
   return (
