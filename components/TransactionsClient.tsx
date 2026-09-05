@@ -32,6 +32,7 @@ import {
   getMonthRangeForQuery,
   shiftMonthKey,
   toDateKey,
+  toDatetimeLocalValue,
 } from '../lib/insights';
 import { queryKeys } from '../lib/query-keys';
 import { enqueueOfflineOutboxItem, isLocalOnlyTransactionId } from '../lib/offline-sync';
@@ -62,6 +63,7 @@ export function TransactionsClient({
   const [categoryId, setCategoryId] = useState(categories[0]?.id ?? '');
   const [type, setType] = useState<Transaction['type']>('expense');
   const [amount, setAmount] = useState('');
+  const [occurredAt, setOccurredAt] = useState(() => toDatetimeLocalValue(new Date()));
   const [note, setNote] = useState('');
   const [noteOpen, setNoteOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -235,6 +237,7 @@ export function TransactionsClient({
   const resetForm = () => {
     setEditingId(null);
     setAmount('');
+    setOccurredAt(toDatetimeLocalValue(new Date()));
     setNote('');
     setNoteOpen(false);
     setType('expense');
@@ -258,6 +261,12 @@ export function TransactionsClient({
       setStatus('Enter a valid amount.');
       return;
     }
+    const occurredAtDate = new Date(occurredAt);
+    if (!occurredAt || Number.isNaN(occurredAtDate.getTime())) {
+      setStatus('Enter a valid date and time.');
+      return;
+    }
+    const occurredAtIso = occurredAtDate.toISOString();
     if (type === 'transfer') {
       if (!transferAccountId) {
         setStatus('Choose a target account for this transfer.');
@@ -277,6 +286,7 @@ export function TransactionsClient({
       note: note || null,
       category_id: type === 'transfer' ? null : categoryId || null,
       is_planned: true,
+      occurred_at: occurredAtIso,
     };
 
     // Tags need a real (already-synced) transaction id to attach to via `transaction_tags`.
@@ -309,7 +319,7 @@ export function TransactionsClient({
           amount: String(payload.amount),
           category_id: (payload.category_id as string | null) ?? null,
           note: (payload.note as string | null) ?? null,
-          occurred_at: new Date().toISOString(),
+          occurred_at: occurredAtIso,
           is_planned: payload.is_planned as boolean,
           updated_at: new Date().toISOString(),
         });
@@ -349,7 +359,7 @@ export function TransactionsClient({
           amount: String(payload.amount),
           category_id: (payload.category_id as string | null) ?? null,
           note: (payload.note as string | null) ?? null,
-          occurred_at: new Date().toISOString(),
+          occurred_at: occurredAtIso,
           is_planned: payload.is_planned as boolean,
           updated_at: new Date().toISOString(),
         });
@@ -376,7 +386,7 @@ export function TransactionsClient({
           amount: String(payload.amount),
           category_id: (payload.category_id as string | null) ?? null,
           note: (payload.note as string | null) ?? null,
-          occurred_at: new Date().toISOString(),
+          occurred_at: occurredAtIso,
           is_planned: payload.is_planned as boolean,
         });
         upsertInCurrentWindow(optimistic);
@@ -412,7 +422,7 @@ export function TransactionsClient({
           amount: String(payload.amount),
           category_id: (payload.category_id as string | null) ?? null,
           note: (payload.note as string | null) ?? null,
-          occurred_at: new Date().toISOString(),
+          occurred_at: occurredAtIso,
           is_planned: payload.is_planned as boolean,
         });
         upsertInCurrentWindow(optimistic);
@@ -435,6 +445,7 @@ export function TransactionsClient({
     setTransferAccountId(txn.transfer_account_id ?? '');
     setCategoryId(txn.category_id ?? '');
     setAmount(txn.amount);
+    setOccurredAt(toDatetimeLocalValue(new Date(txn.occurred_at)));
     setNote(txn.note ?? '');
     setNoteOpen(Boolean(txn.note));
     setSelectedTagIds([]);
@@ -729,6 +740,16 @@ export function TransactionsClient({
                 )}
                 <input className="field text-right font-mono" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
                 <button onClick={addOrUpdateTransaction} className="btn-primary whitespace-nowrap">{editingId ? 'Update' : 'Add transaction'}</button>
+              </div>
+
+              <div>
+                <label className="kicker mb-1 block">Date &amp; time</label>
+                <input
+                  type="datetime-local"
+                  className="field"
+                  value={occurredAt}
+                  onChange={(e) => setOccurredAt(e.target.value)}
+                />
               </div>
 
               {noteOpen ? (

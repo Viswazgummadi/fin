@@ -30,6 +30,13 @@ export function getCurrentMonthKey(reference = new Date()) {
   return getMonthKey(reference);
 }
 
+/** Formats a Date/ISO string into the "YYYY-MM-DDTHH:mm" shape a `<input type="datetime-local">` expects, in the browser's local time. */
+export function toDatetimeLocalValue(date: Date | string) {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function shiftMonthKey(monthKey: string, delta: number) {
   const [year, month] = monthKey.split('-').map(Number);
   const shifted = new Date(Date.UTC(year, month - 1 + delta, 1));

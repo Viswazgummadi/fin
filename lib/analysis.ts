@@ -82,7 +82,10 @@ export function getPeriodRange(period: PeriodKey, reference = new Date()): Perio
 }
 
 export function inRange(dateIso: string, start: Date | null, end: Date) {
-  const d = shiftToIST(dateIso);
+  // `start`/`end` come from getPeriodRange, which derives them from the browser's local
+  // clock (not shifted) — comparing against a shiftToIST'd instant here would double-shift
+  // and misfile transactions near midnight into the wrong day.
+  const d = new Date(dateIso);
   if (start && d < start) return false;
   return d <= new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999);
 }
