@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Tag } from '../lib/types';
+import { queryKeys } from '../lib/query-keys';
 import { createSupabaseBrowserClient } from '../utils/supabase/client';
 
 const PRESET_COLORS = [
@@ -17,6 +19,7 @@ const PRESET_COLORS = [
 
 export function TagsClient({ initialTags }: { initialTags: Tag[] }) {
   const supabase = createSupabaseBrowserClient();
+  const queryClient = useQueryClient();
   const [tags, setTags] = useState(initialTags);
   const [name, setName] = useState('');
   const [color, setColor] = useState('#6366f1');
@@ -24,7 +27,10 @@ export function TagsClient({ initialTags }: { initialTags: Tag[] }) {
   const add = async () => {
     if (!supabase || !name.trim()) return;
     const { data, error } = await supabase.from('tags').insert({ name, color }).select('*').single();
-    if (!error && data) setTags([data, ...tags]);
+    if (!error && data) {
+      setTags([data, ...tags]);
+      queryClient.invalidateQueries({ queryKey: queryKeys.tags });
+    }
     setName('');
   };
 
